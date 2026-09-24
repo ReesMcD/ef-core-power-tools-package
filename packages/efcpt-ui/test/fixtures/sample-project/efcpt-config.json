@@ -1,0 +1,16 @@
+{
+  "efcpt-ui": {
+    "provider": "sqlite",
+    "connection": { "env": "SAMPLE_SHOP_DB" }
+  },
+  "code-generation": {
+    "refresh-object-lists": true
+  },
+  "names": {
+    "dbcontext-name": "ShopContext",
+    "root-namespace": "Sample.Shop"
+  },
+  "tables": [
+    { "name": "AuditLog", "exclude": true }
+  ]
+}

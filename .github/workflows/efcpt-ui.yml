@@ -1,0 +1,101 @@
+name: efcpt-ui
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'master'
+    paths:
+      - '.github/workflows/efcpt-ui.yml'
+      - 'packages/efcpt-ui/**'
+      - 'samples/efcpt-config.schema.json'
+      - 'src/Core/**'
+      - 'src/GUI/RevEng.Shared/**'
+  pull_request:
+    branches:
+      - '*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: packages/efcpt-ui
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - uses: actions/setup-node@v5
+      with:
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: packages/efcpt-ui/package-lock.json
+
+    - run: npm ci
+
+    # Formatting and generated files are checked once; Windows checkouts may have CRLF line endings
+    - name: Schema types up to date
+      if: runner.os == 'Linux'
+      run: npm run check-schema
+
+    - name: Lint and format
+      if: runner.os == 'Linux'
+      run: |
+        npm run lint
+        npm run format:check
+
+    - run: npm run typecheck
+
+    - run: npm test
+
+    - name: Pack, install and run
+      shell: bash
+      run: |
+        npm run build
+        npm pack --pack-destination "$RUNNER_TEMP"
+        mkdir "$RUNNER_TEMP/consumer" && cd "$RUNNER_TEMP/consumer"
+        npm init -y > /dev/null
+        npm install --no-audit --no-fund "$RUNNER_TEMP"/efcpt-ui-*.tgz
+        npx efcpt-ui --version
+        npx efcpt-ui --help > /dev/null
+
+  e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '10.0.x'
+
+    - uses: actions/setup-node@v5
+      with:
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: packages/efcpt-ui/package-lock.json
+
+    - name: Build engine (EF Core 10)
+      working-directory: .
+      run: dotnet build src/Core/efcpt.10/efcpt.10.csproj -c Release
+
+    - run: npm ci
+
+    - name: End to end (generate from SQLite and compile the result)
+      env:
+        EFCPT_UI_E2E_ENGINE: ${{ github.workspace }}/src/Core/efcpt.10/bin/Release/net10.0/efcpt.10.dll
+        EFCPT_UI_E2E_BUILD: '1'
+      run: npx vitest run test/e2e.test.ts

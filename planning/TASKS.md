@@ -8,26 +8,29 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
 
 - [x] **F0** Scoping: current-state report, scope, plan, tasks (`planning/`)
 - [ ] **F1** Decide the open questions in SCOPE.md: package/command name, engine distribution, UI stack, config formats, Node minimum, whether to upstream
-- [ ] **F2** Enable GitHub Actions on the fork. Confirm `cli-tool.yml` goes green (NUnitTestCore + build efcpt.8/9/10 on Ubuntu). Turn off or skip upstream publish steps (NuGet/VSIX secrets) so they don't fail on the fork
+- [~] **F2** Enable GitHub Actions on the fork. Confirm `cli-tool.yml` goes green (NUnitTestCore + build efcpt.8/9/10 on Ubuntu). Turn off or skip upstream publish steps (NuGet/VSIX secrets) so they don't fail on the fork
+  - Done: NuGet publish and VSIX Azure signing steps now only run in the upstream repo; `cli-tool.yml` also triggers on `src/GUI/RevEng.Shared` changes and runs the JSON smoke test. The same checks pass locally on Linux (175/175 tests, smoke test on EF 8/9/10)
+  - **Blocked on repo owner:** Actions is disabled on the fork (0 workflows registered). Enable it under the repo's Actions tab
 - [ ] **F3** Create the `packages/efcpt-ui/` workspace: TypeScript, ESLint, Prettier, Vitest, `bin` entry, `npm pack` smoke test
 - [ ] **F4** Generate TS types from `samples/efcpt-config.schema.json` (for example `json-schema-to-typescript`) as a build step
 - [ ] **F5** Test fixtures: a sample .NET 10 project + SQLite DB (checked in) + a SQL Server docker compose (reuse `test/ScaffoldingTester` Northwind/Chinook scripts)
-- [ ] **F6** Measure engine publish size for each EF version (`dotnet publish src/Core/efcpt.10 -c Release`) to settle AD-4 (bundle vs. download)
+- [x] **F6** Measure engine publish size for each EF version to settle AD-4. Result: 243 MB gzipped for all three, 42 MB for a trimmed single engine, so the plan is download on first use (see PLAN AD-4, ENGINE_INTERFACE.md)
 - [ ] **F7** CI matrix job for the npm package on ubuntu, windows and macos
 
 ## Phase 1: Engine JSON interface (`src/Core/efcpt.8`, shared by 9/10)
 
-- [ ] **E1** Add a `--list-objects` option to `ScaffoldOptions`. Add a new `ListObjectsHostedService` that runs `TableListBuilder` (tables/views + procedures + functions) and **doesn't** read, write or generate anything else
-- [ ] **E2** Add a `--json` option. When set, route `DisplayService` output to stderr or silence it, and write one JSON document to stdout:
+- [x] **E1** Add a `--list-objects` option to `ScaffoldOptions`. Add a new `ListObjectsHostedService` that runs `TableListBuilder` (tables/views + procedures + functions) and **doesn't** read, write or generate anything else
+- [x] **E2** Add a `--json` option. When set, route `DisplayService` output to stderr or silence it, and write one JSON document to stdout:
   - list mode: `{ "objects": [TableModel...], "databaseType": ..., "efCoreVersion": ... }`
   - generate mode: `{ "result": ReverseEngineerResult, "configWarnings": [...], "readmePath": ..., "outputPaths": [...] }`
-  - on error: `{ "error": { "message", "details" } }`, exit code 1
-- [ ] **E3** Make sure a failed provider resolution (`Environment.Exit(1)` in `Program.ResolveProvider`) also produces JSON errors when `--json` is set
-- [ ] **E4** Add `[JsonExtensionData] Dictionary<string, JsonElement>` to `RevEng.Common.Cli.Configuration.CliConfig` so unknown sections survive a rewrite. Keep the incoming `$schema` value instead of the hardcoded upstream URL
+  - on error: `{ "success": false, "errors": [...] }`, exit code 1 (final shape: see ENGINE_INTERFACE.md)
+- [x] **E3** Make sure a failed provider resolution (`Environment.Exit(1)` in `Program.ResolveProvider`) also produces JSON errors when `--json` is set
+- [x] **E4** Add `[JsonExtensionData] Dictionary<string, JsonElement>` to `RevEng.Common.Cli.Configuration.CliConfig` so unknown sections survive a rewrite. Keep the incoming `$schema` value instead of the hardcoded upstream URL
 - [ ] **E5** Add a `--no-config-write` option (skip the `File.WriteAllText` in `CliConfigMapper.TryGetCliConfig`) for runs started by the UI
-- [ ] **E6** NUnit tests: list-objects JSON shape (SQLite), config round-trip with an unknown section, `--json` generate output
-- [ ] **E7** Update `src/Core/efcpt.8/readme.md` with the new options
-- [ ] **E8** (optional) Open an upstream PR to ErikEJ/EFCorePowerTools with E1–E5
+- [x] **E6** Tests: 9 xUnit tests in `src/Core/NUnitTestCore/CliJsonOutputTest.cs` (JSON contract, config round-trip incl. the `TryGetCliConfig` rewrite path) + end-to-end `tools/cli-json-smoke-test.sh` against SQLite, run in CI for EF 8/9/10
+- [x] **E7** Update `src/Core/efcpt.8/readme.md` with the new options
+- [x] **E9** Fix upstream bugs found along the way: connection failures silently exited 0; an unreadable config file made the CLI hang; unknown provider gave a misleading second error
+- [ ] **E8** (optional) Open an upstream PR to ErikEJ/EFCorePowerTools with E1–E4 + E9
 
 ## Phase 2: Launcher and headless path (`packages/efcpt-ui`)
 
@@ -35,7 +38,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
 - [ ] **L2** Config discovery: find `efcpt-config*.json` / `*.efcpt.json` under the project root, skipping `bin/`, `obj/` and `node_modules/`
 - [ ] **L3** Project discovery: nearest `*.csproj` above the config. Read `RootNamespace`, `TargetFramework(s)`, and the `Microsoft.EntityFrameworkCore*` PackageReference version (plus `Directory.Packages.props` for central package management). Map to EF major 8/9/10
 - [ ] **L4** Connection resolution in order: flag → env → `efcpt-ui.connection` config section (`env` / `user-secrets` / `appsettings` / `dacpac`) → UI prompt. User-secrets are read via `dotnet user-secrets list --project` or the secrets.json path
-- [ ] **L5** Engine locator: bundled `engines/efN/efcpt.dll` → `--engine` override → global `efcpt` on PATH (warn if it's the upstream build without `--json`)
+- [ ] **L5** Engine locator: `--engine` override → cached engine for this EF version/platform → download from GitHub Releases (verify checksum) → global `efcpt` on PATH (warn if it's the upstream build without `--json`). Spike: `planning/spikes/list-objects.mjs` covers spawning and parsing
 - [ ] **L6** Runtime check: `dotnet --list-runtimes` has a suitable `Microsoft.NETCore.App`, with a clear error and install link if not
 - [ ] **L7** Engine runner: spawn with arguments (never through a shell, to avoid quoting and injection issues with connection strings), timeout and cancel, parse JSON, keep stderr for logs, redact connection strings
 - [ ] **L8** Config I/O: load, validate against the schema (Ajv), write with minimal diff and preserved key order, create a new config from a template (defaults matching `CliConfigMapper` new-config defaults)
@@ -74,7 +77,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
 - [ ] **R2** Check the config written by the UI gives identical output through the stock `efcpt -i`
 - [ ] **R3** Security pass on the local server (token, CORS/Origin, path traversal on config paths, secret redaction)
 - [ ] **R4** Package README: install, quick start, multi-config `package.json` scripts, connection options, troubleshooting
-- [ ] **R5** Release workflow: build/publish engines for EF 8/9/10 → assemble the npm package → `npm publish --provenance`. Versioning scheme documented
+- [ ] **R5** Release workflow: publish trimmed engines (EF 8/9/10 × win-x64, win-arm64, osx-arm64, osx-x64, linux-x64, linux-arm64) as GitHub Release assets with checksums → `npm publish --provenance`. Versioning scheme documented
 - [ ] **R6** Update the root `README.md` of the fork to describe the standalone tool and credit upstream
 
 ## Phase 5: Stretch (unordered)

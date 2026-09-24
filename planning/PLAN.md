@@ -28,12 +28,15 @@ Why A: `efcpt` already owns the config → options mapping (`CliConfigMapper`), 
 - TS types are generated from `samples/efcpt-config.schema.json`, so there's no hand-maintained second schema.
 - Anything done in the UI can be reproduced with `efcpt -i <config>` in CI.
 
-### AD-4: Engine distribution. Ship binaries in the npm package (v1)
+### AD-4: Engine distribution. Download on first use (revised after measuring)
 
-- CI builds framework-dependent `efcpt.8/9/10` outputs (`dotnet publish`, no RID, `RollForward=Major`, as today) and puts them in the npm tarball under `engines/ef8|ef9|ef10/`. The launcher runs `dotnet engines/ef10/efcpt.dll ...`.
-- This avoids a global `dotnet tool` install and version clashes with the official `efcpt`.
-- Size check needed (provider packages make each engine tens of MB). If it's too big, split into optional platform packages (`@efcpt-ui/engine-ef10`) or download on first run into a cache (keyed by the version hash).
-- Override: `--engine <path-to-efcpt.dll|efcpt>` for local development or a globally installed tool.
+**Measured (F6):** one framework-dependent engine is 76–84 MB gzipped, and all three together are 243 MB, so bundling them in the npm package is out. Trimmed to one platform and English only, one engine is **42 MB gzipped** and passes the full smoke test. Details are in [ENGINE_INTERFACE.md](ENGINE_INTERFACE.md#engine-size-task-f6-measured-2026-09-24).
+
+- CI publishes a trimmed engine for each EF version × platform (`-r <rid> --self-contained false -p:SatelliteResourceLanguages=en`, `RollForward=Major`) as GitHub Release assets, with checksums.
+- On first run, the launcher downloads only the engine the project needs (EF version × current platform, about 42 MB) into a user cache (`~/.cache/efcpt-ui/<version>/<ef>-<rid>/`). It verifies the checksum, then runs `dotnet <cache>/efcpt.N.dll ...`. The npm package itself stays small.
+- Offline / locked-down fallback: `--engine <path-to-efcpt.dll|efcpt>`, or install the fork as a dotnet tool.
+- Rejected: per-platform optional npm packages (the esbuild pattern). With 3 EF versions × ~6 platforms that's ~18 packages of ~42 MB each to publish on every release.
+- Target platforms: win-x64, win-arm64, osx-arm64, osx-x64, linux-x64, linux-arm64.
 
 ### AD-5: Keep the fork mergeable
 
@@ -112,7 +115,7 @@ Renaming UI (`efpt.renaming.json`), `efpt.config.json` importer, diff preview, M
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
-| npm tarball too big with 3 engines bundled | Slow installs, npm size limits | Measure in Phase 0. Split into per-EF-version optional packages, or download on demand |
+| Engine is large (~42 MB per EF version/platform, measured) | Slow first run, needs network | Download once per version into a cache. `--engine` / dotnet tool fallback for offline use |
 | Upstream refactors `efcpt` / `CliConfigMapper` | Merge conflicts | Additive code, monthly merges, try to upstream the changes |
 | `dotnet` runtime missing or wrong major | Engine won't start | Check `dotnet --list-runtimes` up front (as the VS extension does) and show a clear message. `RollForward=Major` already helps |
 | Provider-specific surprises (Oracle schemas, Snowflake, dacpac merge) | Broken edge cases | v1 officially tests SQL Server, SQLite and PostgreSQL; others are "best effort". Pass through the engine's own options |

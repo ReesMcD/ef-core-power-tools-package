@@ -122,7 +122,7 @@ We never write a plain-text connection string into `efcpt-config.json`.
 ## Open questions (need a decision)
 
 1. **Package and command name.** `efcpt-ui`? Something new? Avoid implying it's the official EF Core Power Tools.
-2. **Engine distribution.** Options: (a) require the user to install our fork's `efcpt` as a dotnet tool, (b) ship prebuilt framework-dependent engine binaries inside the npm package (~tens of MB for each EF version), (c) download on first run. Recommendation: **(b) for v1** (one install, works offline), with (c) as a later size optimisation.
+2. **Engine distribution.** Options: (a) require the user to install our fork's `efcpt` as a dotnet tool, (b) ship prebuilt engine binaries inside the npm package, (c) download on first run. **Measured:** bundling all three engines is 243 MB gzipped, so (b) is out. Recommendation: **(c)**, a trimmed ~42 MB engine for the one EF version and platform needed, with (a) as the offline fallback. See PLAN AD-4.
 3. **Upstream contribution.** Do we try to upstream the `efcpt list --json` / `--json` changes to ErikEJ? That would let us use the official NuGet tool and drop our fork of the engine. Recommendation: yes, try it. They're small and generally useful.
 4. **UI stack.** Recommendation: Vite + React + TypeScript (largest ecosystem, tree/form components readily available). Svelte would also be fine.
 5. **Config file naming.** Should we support `efpt.*config.json` (VS format) in v1 or only `efcpt-config.json`? Recommendation: `efcpt-config.json` only in v1, with an importer as a stretch goal.

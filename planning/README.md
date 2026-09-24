@@ -8,6 +8,8 @@ Planning docs for turning this fork of [EF Core Power Tools](https://github.com/
 | [SCOPE.md](SCOPE.md) | Project scope: goals, non-goals, user workflow, requirements, target architecture, open questions |
 | [PLAN.md](PLAN.md) | Phased delivery plan, architecture decisions, risks |
 | [TASKS.md](TASKS.md) | Task checklist grouped by phase |
+| [ENGINE_INTERFACE.md](ENGINE_INTERFACE.md) | The `efcpt --list-objects --json` contract, selection rules the UI must follow, measured engine sizes |
+| [spikes/](spikes/) | Throwaway proofs of concept (`list-objects.mjs`: Node → efcpt → JSON) |
 
 ## TL;DR
 

@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 // Throwaway spike: proves the Node -> efcpt --json path the npm package will use.
+// Superseded by `efcpt-ui --list` (packages/efcpt-ui). Its selection logic ignores refresh-object-lists;
+// the correct rules are in packages/efcpt-ui/src/config/selection.ts.
 // Lists the database objects and shows which ones a given efcpt-config.json selects.
 //
 // Usage:

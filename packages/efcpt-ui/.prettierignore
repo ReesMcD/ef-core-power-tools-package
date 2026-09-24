@@ -1,0 +1,5 @@
+dist
+node_modules
+schema
+src/config/efcpt-config.generated.ts
+test/fixtures

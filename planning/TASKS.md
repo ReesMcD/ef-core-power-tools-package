@@ -10,17 +10,16 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 
 - [x] **F0** Scoping: current-state report, scope, plan, tasks (`planning/`)
 - [~] **F1** Decide the open questions in SCOPE.md: package/command name, engine distribution, UI stack, config formats, Node minimum, whether to upstream
-  - Decided: package/command name `efcpt-ui` (engine: `ReesMcD.EFCorePowerTools.Engine` / `efcpt-ui-engine`), engine distribution (download on first use), fork-only. Still open: UI stack, config formats, Node minimum (recommendations in SCOPE)
-- [~] **F2** Enable GitHub Actions on the fork. Confirm `cli-tool.yml` goes green (NUnitTestCore + build efcpt.8/9/10 on Ubuntu). Turn off or skip upstream publish steps (NuGet/VSIX secrets) so they don't fail on the fork
-  - Done: NuGet publish and VSIX Azure signing steps (which need upstream's secrets) are skipped on the fork; `cli-tool.yml` also triggers on `src/GUI/RevEng.Shared` changes and runs the JSON smoke test. The same checks pass locally on Linux (175/175 tests, smoke test on EF 8/9/10)
-  - **Blocked on repo owner:** Actions is disabled on the fork (0 workflows registered, re-checked 2026-09-24). Enable it at https://github.com/ReesMcD/ef-core-power-tools-package/actions ("I understand my workflows, go ahead and enable them"), and under Settings → Actions → General allow actions to run
-- [ ] **F3** Create the `packages/efcpt-ui/` workspace: TypeScript, ESLint, Prettier, Vitest, `bin` entry, `npm pack` smoke test
-- [ ] **F4** Generate TS types from `samples/efcpt-config.schema.json` (for example `json-schema-to-typescript`) as a build step
-- [ ] **F5** Test fixtures: a sample .NET 10 project + SQLite DB (checked in) + a SQL Server docker compose (reuse `test/ScaffoldingTester` Northwind/Chinook scripts)
+  - Decided: package/command name `efcpt-ui` (engine: `ReesMcD.EFCorePowerTools.Engine` / `efcpt-ui-engine`), engine distribution (download on first use), fork-only, Node 22+. Still open: UI stack, config formats (recommendations in SCOPE)
+- [x] **F2** GitHub Actions enabled on the fork and green: `cli-tool.yml` (engine tests + efcpt 8/9/10 + JSON smoke test), `vsix.yml` (VS extension build; file-count check updated to 113). Upstream publish/signing steps are skipped on the fork
+- [x] **F3** Create the `packages/efcpt-ui/` workspace: TypeScript 6.0 (typescript-eslint doesn't support 7 yet), ESLint, Prettier, Vitest, `bin` entry, `npm pack` smoke test
+- [x] **F4** TS types generated from `samples/efcpt-config.schema.json` (`npm run sync-schema`; committed, CI fails if stale via `npm run check-schema`)
+- [~] **F5** Test fixtures: a sample .NET 10 project + SQLite DB (checked in) + a SQL Server docker compose (reuse `test/ScaffoldingTester` Northwind/Chinook scripts)
+  - Done: `packages/efcpt-ui/test/fixtures/sample-project` (net10.0, EF Core SQLite 10.0.12, `shop.db`). Still to do: SQL Server fixture
 - [x] **F6** Measure engine publish size for each EF version to settle AD-4. Result: 243 MB gzipped for all three, 42 MB for a trimmed single engine, so the plan is download on first use (see PLAN AD-4, ENGINE_INTERFACE.md)
 - [x] **F8** Fork identity for the engine CLI: our own `PackageId` / `RepositoryUrl` / authors in `efcpt.8/9/10.csproj` (keep MIT attribution to ErikEJ). Disable or repoint `PackageService.CheckForPackageUpdateAsync`, which currently tells users to update to the official `ErikEJ.EFCorePowerTools.Cli`. Don't reuse the `efcpt` command name if it would clash with a globally installed official tool
   - Done: `PackageId` `ReesMcD.EFCorePowerTools.Engine`, command `efcpt-ui-engine`, fork URLs/authors (ErikEJ copyright kept), update check and header link point at the fork. Left for release (R4): the packaged `readme.md` still has the upstream install instructions
-- [ ] **F7** CI matrix job for the npm package on ubuntu, windows and macos
+- [x] **F7** `.github/workflows/efcpt-ui.yml`: lint/format/schema check, typecheck, tests and pack-install-run on ubuntu, windows and macos; end-to-end job builds the EF Core 10 engine, generates from SQLite and compiles the result
 
 ## Phase 1: Engine JSON interface (`src/Core/efcpt.8`, shared by 9/10)
 
@@ -39,16 +38,16 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 
 ## Phase 2: Launcher and headless path (`packages/efcpt-ui`)
 
-- [ ] **L1** CLI argument parsing: `--config`, `--project`, `--connection`, `--connection-env`, `--provider`, `--port`, `--no-open`, `--generate`, `--engine`, `--verbose`
-- [ ] **L2** Config discovery: find `efcpt-config*.json` / `*.efcpt.json` under the project root, skipping `bin/`, `obj/` and `node_modules/`
-- [ ] **L3** Project discovery: nearest `*.csproj` above the config. Read `RootNamespace`, `TargetFramework(s)`, and the `Microsoft.EntityFrameworkCore*` PackageReference version (plus `Directory.Packages.props` for central package management). Map to EF major 8/9/10
-- [ ] **L4** Connection resolution in order: flag → env → `efcpt-ui.connection` config section (`env` / `user-secrets` / `appsettings` / `dacpac`) → UI prompt. User-secrets are read via `dotnet user-secrets list --project` or the secrets.json path
-- [ ] **L5** Engine locator: `--engine` override → cached engine for this EF version/platform → download from GitHub Releases (verify checksum) → `efcpt-ui-engine` dotnet tool on PATH. Spike: `planning/spikes/list-objects.mjs` covers spawning and parsing
-- [ ] **L6** Runtime check: `dotnet --list-runtimes` has a suitable `Microsoft.NETCore.App`, with a clear error and install link if not
-- [ ] **L7** Engine runner: spawn with arguments (never through a shell, to avoid quoting and injection issues with connection strings), timeout and cancel, parse JSON, keep stderr for logs, redact connection strings
-- [ ] **L8** Config I/O: load, validate against the schema (Ajv), write with minimal diff and preserved key order, create a new config from a template (defaults matching `CliConfigMapper` new-config defaults)
-- [ ] **L9** `--generate` headless mode, with exit codes suitable for CI
-- [ ] **L10** Unit tests for L2–L8
+- [x] **L1** CLI argument parsing (`node:util` parseArgs): `--config`, `--project`, `--connection`, `--connection-env`, `--provider`, `--port`, `--no-open`, `--generate`, `--list`, `--engine`, `--verbose`, `--help`, `--version`. `--port`/`--no-open` are parsed for the UI (Phase 3)
+- [x] **L2** Config discovery: `efcpt-config.json`, `efcpt-config.*.json`, `*.efcpt.json` (not `*.schema.json`) under the project, skipping `bin/`, `obj/`, `node_modules/`, `.git/`. Several configs → asks for `--config` (UI picker in Phase 3)
+- [x] **L3** Project discovery: nearest folder at or above the config with exactly one `.csproj`. Reads `RootNamespace`, `TargetFramework(s)`, `UserSecretsId`, and the EF version from `Microsoft.EntityFrameworkCore*` (then Npgsql/Pomelo/Oracle/Firebird providers), incl. `Directory.Packages.props`, `VersionOverride`, `$(Property)` values; falls back to the target framework. EF < 8 rejected, > 10 uses the 10 engine with a warning
+- [~] **L4** Connection resolution in order: flag → `--connection-env` → `EFCPT_CONNECTION` → `efcpt-ui.connection` section (`env` / `user-secrets` / `appsettings` with JSONC comments / `dacpac`). Reads secrets.json directly. Still to do: the UI prompt (Phase 3)
+- [~] **L5** Engine locator: `--engine` (.dll via dotnet, .js/.mjs via node, else executable) → `EFCPT_UI_ENGINE` → download cache → `efcpt-ui-engine` on PATH if built for the same EF version (checked with `--version`). Still to do: the download itself (needs release assets, R5)
+- [x] **L6** Runtime check: `dotnet --list-runtimes` must have .NET 8+ (EF 8/9 engines) or .NET 10+ (EF 10), with a clear error and install link
+- [x] **L7** Engine runner: no shell, timeout, abort signal, parses the single JSON line, checks `schemaVersion`, streams stderr as progress, redacts connection strings and password-like values everywhere
+- [~] **L8** Config I/O: load (BOM), schema validation with Ajv draft-04 (type errors only: efcpt has defaults for every "required" option), write keeping key order, indentation, line endings and BOM. Selection logic mirrors the engine including `refresh-object-lists` (on by default). Still to do: creating a new config from a template (Phase 3; with a sensible `dbcontext-name`, see X9)
+- [x] **L9** `--generate` headless mode (exit codes 0 / 1 generation failed / 2 setup problem) and `--list` (objects with what the next generate will create)
+- [x] **L10** 56 unit tests (fake engine, runs on all OSes) + end-to-end test against the real engine incl. `dotnet build` of the generated code
 
 ## Phase 3: GUI v1
 
@@ -95,3 +94,4 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 - [ ] **X6** Engine download-on-demand with a local cache
 - [ ] **X7** Ship the launcher as a `dotnet tool` too, for people without Node
 - [ ] **X8** Remember UI state per config (last tab, tree expansion) in a gitignored `.efcpt-ui/` folder
+- [ ] **X9** When a config is new (or has no `names.dbcontext-name`), suggest a DbContext name from the project/database: the engine otherwise derives it from the connection string, which for SQLite file paths gives names like `tmpcachedbshopdbContext`

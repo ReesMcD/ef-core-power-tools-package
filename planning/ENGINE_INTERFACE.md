@@ -42,8 +42,10 @@ Always spawn **without a shell** (`spawn('dotnet', [engineDll, ...args])`), so c
 ## Rules the UI must follow
 
 1. **Match objects to config entries by `displayName`.** That's the `name` the CLI writes and reads in `tables` / `views` / `stored-procedures` / `functions`. The format depends on the provider: `[schema].[name]` for SQL Server and dacpac, `schema.name` or just `name` for others.
-2. **Selection semantics** (mirrors `CliConfigMapper.ExclusionFilter`; implemented and verified in the spike):
-   - An object with **no entry** in the config is **not** generated.
+2. **Selection semantics** (mirrors `CliConfigMapper`; implemented in `packages/efcpt-ui/src/config/selection.ts`, checked against real generation in `test/e2e.test.ts`):
+   - `refresh-object-lists` is **on by default**. When it's on, every database object missing from the config is **added** (as `{ "name": ... }`) before the rules below apply, so new objects are generated unless a wildcard or `exclude` says otherwise. To leave out an object that isn't listed yet, add it with `"exclude": true`.
+   - With `refresh-object-lists: false`, an object with **no entry** in the config is **not** generated.
+   - With no config file at all, efcpt creates one listing every object, so everything is generated.
    - `exclusionWildcard: "*"` in a section excludes everything except entries with an explicit `"exclude": false`.
    - Other wildcards: `abc*` starts-with, `*xyz` ends-with, `*mno*` contains. Case-sensitive, matched on `displayName`. A `*` in the middle of the pattern is ignored.
    - An explicit `"exclude": false` beats any wildcard. Otherwise the object is generated unless `"exclude": true`.

@@ -1,0 +1,57 @@
+{
+  "name": "efcpt-ui",
+  "version": "0.1.0",
+  "description": "EF Core Power Tools UI: reverse engineer a database into EF Core models from any .NET project, no Visual Studio needed. Fork of EF Core Power Tools by ErikEJ.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "efcpt-ui": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "schema",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ReesMcD/ef-core-power-tools-package.git",
+    "directory": "packages/efcpt-ui"
+  },
+  "keywords": [
+    "efcore",
+    "entity-framework-core",
+    "ef-core-power-tools",
+    "efcpt",
+    "reverse-engineering",
+    "scaffolding"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "sync-schema": "node scripts/sync-schema.mjs",
+    "check-schema": "node scripts/sync-schema.mjs --check"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-draft-04": "^1.0.0",
+    "fast-xml-parser": "^5.11.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.4",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0",
+    "json-schema-to-typescript": "^16.0.0",
+    "prettier": "^3.9.9",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.0.1"
+  }
+}

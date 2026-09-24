@@ -92,7 +92,9 @@ jobs:
       run: |
         if not exist vsix mkdir vsix
         7z x src/GUI/EFCorePowerTools/bin/Release/EFCorePowerTools.vsix -ovsix -y
+        dir /a:-d /s /b "vsix"
         dir /a:-d /s /b "vsix" | find /c ":\" > filecount.txt
+        type filecount.txt
         findstr "109" filecount.txt
 
     - name: Move build output

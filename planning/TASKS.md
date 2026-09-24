@@ -9,7 +9,8 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 ## Phase 0: Foundations
 
 - [x] **F0** Scoping: current-state report, scope, plan, tasks (`planning/`)
-- [ ] **F1** Decide the open questions in SCOPE.md: package/command name, engine distribution, UI stack, config formats, Node minimum, whether to upstream
+- [~] **F1** Decide the open questions in SCOPE.md: package/command name, engine distribution, UI stack, config formats, Node minimum, whether to upstream
+  - Decided: package/command name `efcpt-ui` (engine: `ReesMcD.EFCorePowerTools.Engine` / `efcpt-ui-engine`), engine distribution (download on first use), fork-only. Still open: UI stack, config formats, Node minimum (recommendations in SCOPE)
 - [~] **F2** Enable GitHub Actions on the fork. Confirm `cli-tool.yml` goes green (NUnitTestCore + build efcpt.8/9/10 on Ubuntu). Turn off or skip upstream publish steps (NuGet/VSIX secrets) so they don't fail on the fork
   - Done: NuGet publish and VSIX Azure signing steps (which need upstream's secrets) are skipped on the fork; `cli-tool.yml` also triggers on `src/GUI/RevEng.Shared` changes and runs the JSON smoke test. The same checks pass locally on Linux (175/175 tests, smoke test on EF 8/9/10)
   - **Blocked on repo owner:** Actions is disabled on the fork (0 workflows registered, re-checked 2026-09-24). Enable it at https://github.com/ReesMcD/ef-core-power-tools-package/actions ("I understand my workflows, go ahead and enable them"), and under Settings → Actions → General allow actions to run
@@ -17,7 +18,8 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 - [ ] **F4** Generate TS types from `samples/efcpt-config.schema.json` (for example `json-schema-to-typescript`) as a build step
 - [ ] **F5** Test fixtures: a sample .NET 10 project + SQLite DB (checked in) + a SQL Server docker compose (reuse `test/ScaffoldingTester` Northwind/Chinook scripts)
 - [x] **F6** Measure engine publish size for each EF version to settle AD-4. Result: 243 MB gzipped for all three, 42 MB for a trimmed single engine, so the plan is download on first use (see PLAN AD-4, ENGINE_INTERFACE.md)
-- [ ] **F8** Fork identity for the engine CLI: our own `PackageId` / `RepositoryUrl` / authors in `efcpt.8/9/10.csproj` (keep MIT attribution to ErikEJ). Disable or repoint `PackageService.CheckForPackageUpdateAsync`, which currently tells users to update to the official `ErikEJ.EFCorePowerTools.Cli`. Don't reuse the `efcpt` command name if it would clash with a globally installed official tool
+- [x] **F8** Fork identity for the engine CLI: our own `PackageId` / `RepositoryUrl` / authors in `efcpt.8/9/10.csproj` (keep MIT attribution to ErikEJ). Disable or repoint `PackageService.CheckForPackageUpdateAsync`, which currently tells users to update to the official `ErikEJ.EFCorePowerTools.Cli`. Don't reuse the `efcpt` command name if it would clash with a globally installed official tool
+  - Done: `PackageId` `ReesMcD.EFCorePowerTools.Engine`, command `efcpt-ui-engine`, fork URLs/authors (ErikEJ copyright kept), update check and header link point at the fork. Left for release (R4): the packaged `readme.md` still has the upstream install instructions
 - [ ] **F7** CI matrix job for the npm package on ubuntu, windows and macos
 
 ## Phase 1: Engine JSON interface (`src/Core/efcpt.8`, shared by 9/10)
@@ -41,7 +43,7 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 - [ ] **L2** Config discovery: find `efcpt-config*.json` / `*.efcpt.json` under the project root, skipping `bin/`, `obj/` and `node_modules/`
 - [ ] **L3** Project discovery: nearest `*.csproj` above the config. Read `RootNamespace`, `TargetFramework(s)`, and the `Microsoft.EntityFrameworkCore*` PackageReference version (plus `Directory.Packages.props` for central package management). Map to EF major 8/9/10
 - [ ] **L4** Connection resolution in order: flag → env → `efcpt-ui.connection` config section (`env` / `user-secrets` / `appsettings` / `dacpac`) → UI prompt. User-secrets are read via `dotnet user-secrets list --project` or the secrets.json path
-- [ ] **L5** Engine locator: `--engine` override → cached engine for this EF version/platform → download from GitHub Releases (verify checksum) → global `efcpt` on PATH (warn if it's the upstream build without `--json`). Spike: `planning/spikes/list-objects.mjs` covers spawning and parsing
+- [ ] **L5** Engine locator: `--engine` override → cached engine for this EF version/platform → download from GitHub Releases (verify checksum) → `efcpt-ui-engine` dotnet tool on PATH. Spike: `planning/spikes/list-objects.mjs` covers spawning and parsing
 - [ ] **L6** Runtime check: `dotnet --list-runtimes` has a suitable `Microsoft.NETCore.App`, with a clear error and install link if not
 - [ ] **L7** Engine runner: spawn with arguments (never through a shell, to avoid quoting and injection issues with connection strings), timeout and cancel, parse JSON, keep stderr for logs, redact connection strings
 - [ ] **L8** Config I/O: load, validate against the schema (Ajv), write with minimal diff and preserved key order, create a new config from a template (defaults matching `CliConfigMapper` new-config defaults)

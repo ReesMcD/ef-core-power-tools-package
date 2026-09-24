@@ -3,20 +3,20 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <PackAsTool>true</PackAsTool>
-    <ToolCommandName>efcpt</ToolCommandName>
-    <PackageId>ErikEJ.EFCorePowerTools.Cli</PackageId>
-    <Description>Entity Framework Core Power Tools command line tool</Description>
+    <ToolCommandName>efcpt-ui-engine</ToolCommandName>
+    <PackageId>ReesMcD.EFCorePowerTools.Engine</PackageId>
+    <Description>Engine for EF Core Power Tools UI (efcpt-ui). Fork of the EF Core Power Tools command line tool by ErikEJ</Description>
     <PackageReadmeFile>readme.md</PackageReadmeFile>
     <PackageVersion>8.0.1</PackageVersion>
     <InformationalVersion>8.0.1</InformationalVersion>
     <Version>8.0.0</Version>
-    <RepositoryUrl>https://github.com/ErikEJ/EFCorePowerTools</RepositoryUrl>
-    <PackageProjectUrl>https://github.com/ErikEJ/EFCorePowerTools</PackageProjectUrl>
-    <Authors>ErikEJ</Authors>
+    <RepositoryUrl>https://github.com/ReesMcD/ef-core-power-tools-package</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/ReesMcD/ef-core-power-tools-package</PackageProjectUrl>
+    <Authors>ReesMcD, ErikEJ</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryType>git</RepositoryType>
     <Copyright>Copyright (c) ErikEJ 2023 - https://github.com/ErikEJ/EFCorePowerTools</Copyright>
-    <Company>ErikEJ</Company>
+    <Company>ReesMcD</Company>
     <PackageTags>Entity Framework Core entity-framework-core EF Data O/RM EntityFramework EntityFrameworkCore EFCore</PackageTags>
     <PackageReleaseNotes>For EF Core 8</PackageReleaseNotes>
     <TargetFramework>net8.0</TargetFramework>

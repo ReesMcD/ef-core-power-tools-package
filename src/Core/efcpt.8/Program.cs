@@ -138,7 +138,7 @@ internal static class Program
         DisplayService.MarkupLine(
             $"EF Core Power Tools CLI {PackageService.CurrentPackageVersion()} for EF Core {Constants.Version}",
             Color.Cyan1);
-        DisplayService.MarkupLine("https://github.com/ErikEJ/EFCorePowerTools", Color.Blue, DisplayService.Link);
+        DisplayService.MarkupLine(Constants.ProjectUrl, Color.Blue, DisplayService.Link);
         DisplayService.MarkupLine();
         DisplayService.MarkupLine(
             () => DisplayService.Markup("config file:", Color.Green),

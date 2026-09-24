@@ -11,4 +11,10 @@ export default tseslint.config(
       globals: globals.node,
     },
   },
+  {
+    files: ['web/**'],
+    languageOptions: {
+      globals: globals.browser,
+    },
+  },
 );

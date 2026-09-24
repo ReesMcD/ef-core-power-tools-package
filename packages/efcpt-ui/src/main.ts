@@ -3,6 +3,7 @@ import { helpText, parseCliArgs, UsageError } from './args.js';
 import { runGenerate } from './commands/generate.js';
 import { consoleOutput, type Output } from './commands/common.js';
 import { runList } from './commands/list.js';
+import { runUi } from './commands/ui.js';
 import { ConfigError } from './config/io.js';
 import { ConnectionError } from './connection.js';
 import { EngineNotFoundError } from './engine/locate.js';
@@ -47,20 +48,15 @@ export async function main(
       return 0;
     }
 
+    // The UI resolves its own session: it can start without a config and without a connection
+    if (!args.generate && !args.list) return await runUi({ args, env, io, cwd });
+
     const session = await resolveSession(args, env, cwd);
     if (session.connection) secrets.push(session.connection.value);
     const context = { session, env, io, enginePath: args.engine, verbose };
 
     if (args.generate) return await runGenerate(context);
-    if (args.list) return await runList(context);
-
-    io.err(
-      'The efcpt-ui web UI is not available yet. Use --list to see database objects or --generate to generate code.',
-    );
-    io.err(
-      `Resolved: config ${session.configPath}, project ${session.project.projectPath}, EF Core ${session.project.efVersion}.`,
-    );
-    return 2;
+    return await runList(context);
   } catch (error) {
     const message = redact(error instanceof Error ? error.message : String(error), secrets);
     io.err(`error: ${message}`);

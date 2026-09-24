@@ -1,4 +1,4 @@
-import type { EfcptConfig } from './io.js';
+import type { EfcptConfig } from './efcpt-config.generated.js';
 import type { ObjectType } from '../engine/contract.js';
 
 /** Common shape of the entries in the tables / views / stored-procedures / functions sections. */

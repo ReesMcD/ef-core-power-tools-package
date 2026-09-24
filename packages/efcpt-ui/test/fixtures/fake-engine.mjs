@@ -20,7 +20,28 @@ switch (mode) {
           command: 'list-objects',
           efCoreVersion: 10,
           databaseType: 'SQLite',
-          objects: [{ displayName: 'Customers', name: 'Customers', type: 'table', columns: [] }],
+          objects: [
+            {
+              displayName: 'Customers',
+              name: 'Customers',
+              type: 'table',
+              columns: [
+                { name: 'Id', storeType: 'INTEGER', isPrimaryKey: true, isForeignKey: false },
+                { name: 'Name', storeType: 'TEXT', isPrimaryKey: false, isForeignKey: false },
+              ],
+            },
+            {
+              displayName: 'Orders',
+              name: 'Orders',
+              type: 'table',
+              columns: [
+                { name: 'Id', storeType: 'INTEGER', isPrimaryKey: true, isForeignKey: false },
+                { name: 'CustomerId', storeType: 'INTEGER', isPrimaryKey: false, isForeignKey: true },
+                { name: 'Notes', storeType: 'TEXT', isPrimaryKey: false, isForeignKey: false },
+              ],
+            },
+            { displayName: 'BigOrders', name: 'BigOrders', type: 'view', columns: [] },
+          ],
           args,
         }),
       );

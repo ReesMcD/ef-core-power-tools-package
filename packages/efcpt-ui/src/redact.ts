@@ -12,3 +12,13 @@ export function redact(text: string, secrets: (string | undefined)[] = []): stri
   }
   return output.replace(passwordPattern, (_, key: string) => `${key}=***`);
 }
+
+/** Redacts every string inside a JSON-like value (objects, arrays), returning a copy. */
+export function redactDeep<T>(value: T, secrets: (string | undefined)[] = []): T {
+  if (typeof value === 'string') return redact(value, secrets) as T;
+  if (Array.isArray(value)) return value.map((item) => redactDeep(item, secrets)) as T;
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, redactDeep(v, secrets)])) as T;
+  }
+  return value;
+}

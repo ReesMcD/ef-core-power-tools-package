@@ -4,7 +4,7 @@ import type { CliArgs } from './args.js';
 import { UsageError } from './args.js';
 import { findConfigFiles } from './config/discovery.js';
 import { loadConfig, validateConfig, type LoadedConfig } from './config/io.js';
-import { getUiSection, resolveConnection, type ResolvedConnection } from './connection.js';
+import { ConnectionError, getUiSection, resolveConnection, type ResolvedConnection } from './connection.js';
 import { findProjectFile, readProject, type ProjectInfo } from './project.js';
 
 /** Everything resolved from the arguments before the engine runs. */
@@ -41,10 +41,16 @@ async function resolveConfigPath(args: CliArgs, cwd: string): Promise<string> {
   );
 }
 
+export interface ResolveOptions {
+  /** Report connection problems as warnings instead of failing (the UI lets the user enter one). */
+  tolerateConnectionErrors?: boolean;
+}
+
 export async function resolveSession(
   args: CliArgs,
   env: NodeJS.ProcessEnv,
   cwd = process.cwd(),
+  options: ResolveOptions = {},
 ): Promise<Session> {
   const configPath = await resolveConfigPath(args, cwd);
   const config = (await exists(configPath)) ? await loadConfig(configPath) : undefined;
@@ -60,14 +66,20 @@ export async function resolveSession(
     );
   }
 
-  const connection = await resolveConnection({
-    connection: args.connection,
-    connectionEnv: args.connectionEnv,
-    env,
-    config: config?.config ?? {},
-    projectDir: project.projectDir,
-    userSecretsId: project.userSecretsId,
-  });
+  let connection: ResolvedConnection | undefined;
+  try {
+    connection = await resolveConnection({
+      connection: args.connection,
+      connectionEnv: args.connectionEnv,
+      env,
+      config: config?.config ?? {},
+      projectDir: project.projectDir,
+      userSecretsId: project.userSecretsId,
+    });
+  } catch (error) {
+    if (!(options.tolerateConnectionErrors && error instanceof ConnectionError)) throw error;
+    warnings.push(error.message);
+  }
 
   const provider =
     args.provider ??

@@ -2,19 +2,22 @@
 
 Checklist for the standalone effort. The phases match [PLAN.md](PLAN.md). IDs are stable, so they can be referenced from commits and PRs (for example `E4`).
 
-Legend: `[ ]` todo · `[~]` in progress · `[x]` done
+Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` dropped
+
+All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PRs, CI and releases. Upstream `ErikEJ/EFCorePowerTools` is only pulled from.
 
 ## Phase 0: Foundations
 
 - [x] **F0** Scoping: current-state report, scope, plan, tasks (`planning/`)
 - [ ] **F1** Decide the open questions in SCOPE.md: package/command name, engine distribution, UI stack, config formats, Node minimum, whether to upstream
 - [~] **F2** Enable GitHub Actions on the fork. Confirm `cli-tool.yml` goes green (NUnitTestCore + build efcpt.8/9/10 on Ubuntu). Turn off or skip upstream publish steps (NuGet/VSIX secrets) so they don't fail on the fork
-  - Done: NuGet publish and VSIX Azure signing steps now only run in the upstream repo; `cli-tool.yml` also triggers on `src/GUI/RevEng.Shared` changes and runs the JSON smoke test. The same checks pass locally on Linux (175/175 tests, smoke test on EF 8/9/10)
-  - **Blocked on repo owner:** Actions is disabled on the fork (0 workflows registered). Enable it under the repo's Actions tab
+  - Done: NuGet publish and VSIX Azure signing steps (which need upstream's secrets) are skipped on the fork; `cli-tool.yml` also triggers on `src/GUI/RevEng.Shared` changes and runs the JSON smoke test. The same checks pass locally on Linux (175/175 tests, smoke test on EF 8/9/10)
+  - **Blocked on repo owner:** Actions is disabled on the fork (0 workflows registered, re-checked 2026-09-24). Enable it at https://github.com/ReesMcD/ef-core-power-tools-package/actions ("I understand my workflows, go ahead and enable them"), and under Settings → Actions → General allow actions to run
 - [ ] **F3** Create the `packages/efcpt-ui/` workspace: TypeScript, ESLint, Prettier, Vitest, `bin` entry, `npm pack` smoke test
 - [ ] **F4** Generate TS types from `samples/efcpt-config.schema.json` (for example `json-schema-to-typescript`) as a build step
 - [ ] **F5** Test fixtures: a sample .NET 10 project + SQLite DB (checked in) + a SQL Server docker compose (reuse `test/ScaffoldingTester` Northwind/Chinook scripts)
 - [x] **F6** Measure engine publish size for each EF version to settle AD-4. Result: 243 MB gzipped for all three, 42 MB for a trimmed single engine, so the plan is download on first use (see PLAN AD-4, ENGINE_INTERFACE.md)
+- [ ] **F8** Fork identity for the engine CLI: our own `PackageId` / `RepositoryUrl` / authors in `efcpt.8/9/10.csproj` (keep MIT attribution to ErikEJ). Disable or repoint `PackageService.CheckForPackageUpdateAsync`, which currently tells users to update to the official `ErikEJ.EFCorePowerTools.Cli`. Don't reuse the `efcpt` command name if it would clash with a globally installed official tool
 - [ ] **F7** CI matrix job for the npm package on ubuntu, windows and macos
 
 ## Phase 1: Engine JSON interface (`src/Core/efcpt.8`, shared by 9/10)
@@ -30,7 +33,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
 - [x] **E6** Tests: 9 xUnit tests in `src/Core/NUnitTestCore/CliJsonOutputTest.cs` (JSON contract, config round-trip incl. the `TryGetCliConfig` rewrite path) + end-to-end `tools/cli-json-smoke-test.sh` against SQLite, run in CI for EF 8/9/10
 - [x] **E7** Update `src/Core/efcpt.8/readme.md` with the new options
 - [x] **E9** Fix upstream bugs found along the way: connection failures silently exited 0; an unreadable config file made the CLI hang; unknown provider gave a misleading second error
-- [ ] **E8** (optional) Open an upstream PR to ErikEJ/EFCorePowerTools with E1–E4 + E9
+- [-] **E8** ~~Open an upstream PR~~ Dropped: all work stays in the fork
 
 ## Phase 2: Launcher and headless path (`packages/efcpt-ui`)
 

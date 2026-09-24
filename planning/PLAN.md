@@ -10,7 +10,7 @@ The engine (`RevEng.Core.*`) is .NET and EF Core-version specific, so it can't b
 
 | Option | Pros | Cons |
 | --- | --- | --- |
-| **A. Extend the `efcpt` CLI with `--list-objects` and `--json` (chosen)** | Small, additive change in code that's already cross-platform. Same multi-targeting as today (shared source linked into efcpt.8/9/10). Could be upstreamed | We parse process output (already how the VS extension works) |
+| **A. Extend the `efcpt` CLI with `--list-objects` and `--json` (chosen)** | Small, additive change in code that's already cross-platform. Same multi-targeting as today (shared source linked into efcpt.8/9/10). Fork-only change | We parse process output (already how the VS extension works) |
 | B. Package `efreveng*` and speak its existing stdout protocol | Zero .NET changes | The protocol is ad-hoc (positional args, `Result:` / `Error:` markers). It takes the full `ReverseEngineerCommandOptions`, so we'd have to re-implement `CliConfigMapper` in TS |
 | C. New ASP.NET "engine server" that hosts the API and UI | One process, typed access | Much more .NET code to maintain against a fast-moving upstream. The UI build gets tied to three EF targets |
 
@@ -42,7 +42,8 @@ Why A: `efcpt` already owns the config → options mapping (`CliConfigMapper`), 
 
 - New .NET code goes in **new files** where possible (for example `Services/ListObjectsService.cs`, `Services/JsonOutput.cs`). Edits to existing upstream files are limited to option wiring.
 - The Node/TS package lives in a new top-level folder `packages/efcpt-ui/`, away from `src/`.
-- Merge upstream `master` monthly. Try to upstream the `--list-objects` / `--json` / `[JsonExtensionData]` changes (see SCOPE open question 3).
+- Merge upstream `master` into the fork monthly (pull only). All our work, CI, releases and PRs stay in `ReesMcD/ef-core-power-tools-package`. Nothing is pushed or proposed upstream (SCOPE open question 3).
+- When opening PRs in the GitHub UI, check that the base repository is `ReesMcD/ef-core-power-tools-package`. GitHub defaults a fork's PRs to the original project.
 
 ## Phases
 
@@ -116,7 +117,7 @@ Renaming UI (`efpt.renaming.json`), `efpt.config.json` importer, diff preview, M
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
 | Engine is large (~42 MB per EF version/platform, measured) | Slow first run, needs network | Download once per version into a cache. `--engine` / dotnet tool fallback for offline use |
-| Upstream refactors `efcpt` / `CliConfigMapper` | Merge conflicts | Additive code, monthly merges, try to upstream the changes |
+| Upstream refactors `efcpt` / `CliConfigMapper` | Merge conflicts | Additive code, small edits to upstream files, monthly merges |
 | `dotnet` runtime missing or wrong major | Engine won't start | Check `dotnet --list-runtimes` up front (as the VS extension does) and show a clear message. `RollForward=Major` already helps |
 | Provider-specific surprises (Oracle schemas, Snowflake, dacpac merge) | Broken edge cases | v1 officially tests SQL Server, SQLite and PostgreSQL; others are "best effort". Pass through the engine's own options |
 | Secrets leaking into config or logs | Security | Connection-resolution design in SCOPE. Redact in logs (the CLI already redacts in the readme) |

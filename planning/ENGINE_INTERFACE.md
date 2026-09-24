@@ -54,7 +54,7 @@ Always spawn **without a shell** (`spawn('dotnet', [engineDll, ...args])`), so c
 
 ## Engine behaviour fixed along the way
 
-These were upstream bugs, found while building this. They're good candidates to upstream (task E8):
+These were bugs in the upstream code, found while building this and fixed in the fork only:
 
 - A failing connection (for example an unreadable database) was **silently ignored with exit code 0**, because the hosted service exception was swallowed. It's now reported, with exit code 1.
 - An unreadable config file made the CLI **hang forever** after printing the error (no hosted service was registered to stop the host). It now exits with code 1.

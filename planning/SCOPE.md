@@ -121,7 +121,9 @@ We never write a plain-text connection string into `efcpt-config.json`.
 
 ## Open questions (need a decision)
 
-1. **Package and command name.** `efcpt-ui`? Something new? Avoid implying it's the official EF Core Power Tools.
+1. ~~**Package and command name.**~~ **Decided (2026-09-24):**
+   - npm package and command: **`efcpt-ui`** (unscoped, free on npm as of 2026-09-24). Display name "EF Core Power Tools UI", credited as a fork of ErikEJ's EF Core Power Tools.
+   - Engine (our `efcpt` build): package **`ReesMcD.EFCorePowerTools.Engine`**, dotnet-tool command **`efcpt-ui-engine`**. Neither clashes with the official `ErikEJ.EFCorePowerTools.Cli` / `efcpt`.
 2. **Engine distribution.** Options: (a) require the user to install our fork's `efcpt` as a dotnet tool, (b) ship prebuilt engine binaries inside the npm package, (c) download on first run. **Measured:** bundling all three engines is 243 MB gzipped, so (b) is out. Recommendation: **(c)**, a trimmed ~42 MB engine for the one EF version and platform needed, with (a) as the offline fallback. See PLAN AD-4.
 3. ~~**Upstream contribution.**~~ **Decided: all work stays in the fork** (`ReesMcD/ef-core-power-tools-package`). We don't open PRs against or publish to `ErikEJ/EFCorePowerTools`. We only *pull* upstream changes into the fork. Our engine is built and shipped from the fork (see task F8).
 4. **UI stack.** Recommendation: Vite + React + TypeScript (largest ecosystem, tree/form components readily available). Svelte would also be fine.

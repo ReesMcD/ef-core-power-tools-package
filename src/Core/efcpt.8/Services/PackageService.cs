@@ -41,7 +41,7 @@ internal static class PackageService
             }
 
             var packages = await resource.GetMetadataAsync(
-                "ErikEJ.EFCorePowerTools.Cli",
+                Constants.PackageId,
                 includePrerelease: false,
                 includeUnlisted: false,
                 cache,
@@ -59,7 +59,7 @@ internal static class PackageService
             {
                 DisplayService.MarkupLine("You are not using the latest version of the tool, please update to get the latest bug fixes, features and support", Color.Yellow);
                 DisplayService.MarkupLine($"Latest version is '{latestVersion}'", Color.Yellow);
-                DisplayService.MarkupLine($"Run 'dotnet tool update ErikEJ.EFCorePowerTools.Cli -g --version {Constants.Version}.*' to get the latest version.", Color.Yellow);
+                DisplayService.MarkupLine($"Run 'dotnet tool update {Constants.PackageId} -g --version {Constants.Version}.*' to get the latest version.", Color.Yellow);
             }
         }
 #pragma warning disable CA1031

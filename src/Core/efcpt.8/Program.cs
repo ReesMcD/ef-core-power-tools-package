@@ -2,12 +2,14 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Abstractions;
+using System.Linq;
 using System.Threading.Tasks;
 using CommandLine;
 using CommandLine.Text;
 using ErikEJ.EFCorePowerTools.HostedServices;
 using ErikEJ.EFCorePowerTools.Services;
 using Microsoft.Extensions.Hosting;
+using RevEng.Common.Cli;
 using RevEng.Core;
 using Spectre.Console;
 
@@ -25,6 +27,8 @@ internal static class Program
         catch (Exception ex)
         {
             AnsiConsole.WriteException(ex.Demystify(), ExceptionFormats.ShortenPaths);
+            JsonOutput.RecordError(ex.Message);
+            JsonOutput.Complete();
             return 1;
         }
 #pragma warning restore CA1031
@@ -44,6 +48,12 @@ internal static class Program
             .MapResult(
                 async options =>
                 {
+                    if (options.Json)
+                    {
+                        JsonOutput.Enable();
+                        JsonOutput.Command = options.ListObjects ? CliJsonOutput.ListObjectsCommand : CliJsonOutput.GenerateCommand;
+                    }
+
                     ResolveProvider(options);
 
                     var fileSystem = new FileSystem();
@@ -51,19 +61,46 @@ internal static class Program
                     options.ConfigFile = options.ConfigFile ?? new FileInfo(fileSystem.Path.GetFullPath(Constants.ConfigFileName));
                     options.RenamingFile = options.RenamingFile ?? new FileInfo(fileSystem.Path.GetFullPath(Constants.RenamingFileName));
 
-                    DisplayHeader(options);
+                    if (!options.Json)
+                    {
+                        DisplayHeader(options);
+                    }
+
                     using var host = new HostBuilder()
                         .Configure()
                         .RegisterServices(fileSystem, options)
                         .Build();
-                    await host.RunAsync()
-                        .ConfigureAwait(false);
 
-                    await PackageService.CheckForPackageUpdateAsync().ConfigureAwait(false);
+                    // Setup errors (for example an unreadable config file) leave no hosted service to stop the host, so do not start it
+                    if (Environment.ExitCode == 0)
+                    {
+                        await host.RunAsync()
+                            .ConfigureAwait(false);
+                    }
+
+                    JsonOutput.Complete();
+
+                    if (!options.Json)
+                    {
+                        await PackageService.CheckForPackageUpdateAsync().ConfigureAwait(false);
+                    }
 
                     return Environment.ExitCode;
                 },
-                async _ => await DisplayHelpAsync(parserResult).ConfigureAwait(false));
+                async _ =>
+                {
+                    if (args.Contains("--json", StringComparer.OrdinalIgnoreCase))
+                    {
+                        JsonOutput.Enable();
+                        JsonOutput.Command = args.Contains("--list-objects", StringComparer.OrdinalIgnoreCase)
+                            ? CliJsonOutput.ListObjectsCommand
+                            : CliJsonOutput.GenerateCommand;
+                        JsonOutput.RecordError("Invalid command line, run 'efcpt --help' for usage");
+                        JsonOutput.Complete();
+                    }
+
+                    return await DisplayHelpAsync(parserResult).ConfigureAwait(false);
+                });
 
         return await result.ConfigureAwait(false);
     }
@@ -89,6 +126,7 @@ internal static class Program
                     DisplayService.Error($"Potential providers: '{string.Join(", ", providers)}'");
                 }
 
+                JsonOutput.Complete();
                 Environment.Exit(1);
             }
         }

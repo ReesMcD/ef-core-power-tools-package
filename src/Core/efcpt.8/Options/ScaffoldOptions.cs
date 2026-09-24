@@ -41,6 +41,16 @@ internal sealed class ScaffoldOptions
        HelpText = $"Provide more detailed output")]
     public bool Verbose { get; set; }
 
+    [Option(
+       "list-objects",
+       HelpText = "Only list the tables, views, stored procedures and functions found in the database. No code is generated and the config file is not changed")]
+    public bool ListObjects { get; set; }
+
+    [Option(
+       "json",
+       HelpText = "Write a single JSON result document to stdout (other output goes to stderr), for use by other tools")]
+    public bool Json { get; set; }
+
     public bool IsDacpac => ConnectionString.EndsWith(".dacpac", StringComparison.OrdinalIgnoreCase);
 }
 #pragma warning restore CA1812 // Avoid uninstantiated internal classes

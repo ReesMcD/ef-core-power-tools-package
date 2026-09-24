@@ -67,7 +67,7 @@ internal sealed class ScaffoldHostedService : HostedService
                 return;
             }
 
-            GenerateMermaidContent(config.CodeGeneration.GenerateMermaidDiagram);
+            var diagramPath = GenerateMermaidContent(config.CodeGeneration.GenerateMermaidDiagram);
 
             var commandOptions = config.ToCommandOptions(
                 scaffoldOptions.ConnectionString,
@@ -133,8 +133,26 @@ internal sealed class ScaffoldHostedService : HostedService
             DisplayService.MarkupLine($"{fileUri}", Color.Blue, DisplayService.Link);
             DisplayService.MarkupLine();
 
+            if (JsonOutput.Enabled)
+            {
+                var document = CliJsonOutput.BuildGenerateResult(result, configWarnings, reverseEngineerCommandOptions.DatabaseType, Constants.Version);
+                document.ConfigPath = scaffoldOptions.ConfigFile?.FullName;
+                document.OutputFolders = paths;
+                document.ReadmePath = readmePath;
+                document.DiagramPath = diagramPath;
+                JsonOutput.Write(document);
+            }
+
             Environment.ExitCode = 0;
         }
+#pragma warning disable CA1031 // Do not catch general exception types
+        catch (Exception ex)
+        {
+            // Without this, failures (for example an unreachable database) were silently ignored with exit code 0
+            DisplayService.Error(ex.Message);
+            Environment.ExitCode = 1;
+        }
+#pragma warning restore CA1031 // Do not catch general exception types
         finally
         {
             hostApplicationLifetime.StopApplication();
@@ -195,11 +213,11 @@ internal sealed class ScaffoldHostedService : HostedService
         return paths.Where(p => !string.IsNullOrEmpty(p)).Select(p => p!).Distinct().ToList();
     }
 
-    private void GenerateMermaidContent(bool generate)
+    private string? GenerateMermaidContent(bool generate)
     {
         if (!generate)
         {
-            return;
+            return null;
         }
 
         var content = tableListBuilder.GetMermaidDiagram();
@@ -211,6 +229,8 @@ internal sealed class ScaffoldHostedService : HostedService
         DisplayService.MarkupLine("db diagram:", Color.Green);
         var fileUri = new Uri(new Uri("file://"), file);
         DisplayService.MarkupLine($"{fileUri}", Color.Blue, DisplayService.Link);
+
+        return file;
     }
 
     private List<TableModel> GetTablesAndViews()

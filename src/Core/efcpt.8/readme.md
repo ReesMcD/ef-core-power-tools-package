@@ -140,6 +140,31 @@ In the example above, Users table will be selected.
 
 The tool can generate a [Mermaid ER diagram](https://mermaid.js.org/syntax/entityRelationshipDiagram.html) during exectution, just set the `code-generation` option `generate-mermaid-diagram` to `true` and a `dbdiagram.md` file will be created in the output folder.
 
+### Listing database objects
+
+To only see which tables, views, stored procedures and functions the tool finds, without generating code or changing the config file:
+
+```bash
+efcpt "Data Source=shop.db" sqlite --list-objects
+```
+
+### Machine readable output (for other tools)
+
+Add `--json` to write a single JSON document to stdout. All other output goes to stderr. The exit code is `0` on success and `1` on failure.
+
+```bash
+efcpt "Data Source=shop.db" sqlite --list-objects --json
+efcpt "Data Source=shop.db" sqlite -i efcpt-config.json --json
+```
+
+Every document has `schemaVersion`, `command` (`list-objects` or `generate`), `success`, `errors` and `warnings`. A `list-objects` document adds `efCoreVersion`, `databaseType` and `objects`. Each object has `displayName` (the value used as `name` in `efcpt-config.json`), `schema`, `name`, `type` (`table`, `view`, `storedProcedure` or `function`) and `columns`. A `generate` document adds `configPath`, `contextFilePath`, `contextConfigurationFilePaths`, `entityTypeFilePaths`, `outputFolders`, `readmePath` and `diagramPath`.
+
+```json
+{"schemaVersion":1,"command":"list-objects","success":true,"efCoreVersion":10,"databaseType":"SQLite","objects":[{"displayName":"Customers","name":"Customers","type":"table","columns":[{"name":"Id","storeType":"INTEGER","isPrimaryKey":true,"isForeignKey":false}]}],"errors":[],"warnings":[]}
+```
+
+Top level properties in `efcpt-config.json` that the tool does not know about are kept when the file is updated.
+
 ### Updating the tool
 
 ```bash

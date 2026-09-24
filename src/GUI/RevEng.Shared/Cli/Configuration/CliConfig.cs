@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace RevEng.Common.Cli.Configuration
@@ -6,12 +7,12 @@ namespace RevEng.Common.Cli.Configuration
 #pragma warning disable CA2227
     public class CliConfig
     {
+        public const string DefaultJsonSchema =
+            "https://raw.githubusercontent.com/ErikEJ/EFCorePowerTools/master/samples/efcpt-config.schema.json";
+
         [JsonPropertyOrder(-1)]
         [JsonPropertyName("$schema")]
-#pragma warning disable CA1822
-        public string JsonSchema =>
-            "https://raw.githubusercontent.com/ErikEJ/EFCorePowerTools/master/samples/efcpt-config.schema.json";
-#pragma warning restore CA1822
+        public string JsonSchema { get; set; } = DefaultJsonSchema;
 
         [JsonPropertyOrder(10)]
         [JsonPropertyName("code-generation")]
@@ -54,6 +55,12 @@ namespace RevEng.Common.Cli.Configuration
         [JsonPropertyName("views")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public List<View> Views { get; set; }
+
+        /// <summary>
+        /// Gets or sets top level properties not known by the tool, so they survive when the file is rewritten.
+        /// </summary>
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement> ExtensionData { get; set; }
     }
 #pragma warning restore CA2227
 }

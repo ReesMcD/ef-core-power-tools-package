@@ -49,6 +49,7 @@ internal static class DisplayService
 
     public static void Error(string message)
     {
+        JsonOutput.RecordError(message);
         AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]error: {message}[/]");
     }
 

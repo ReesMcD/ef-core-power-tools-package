@@ -102,7 +102,7 @@ jobs:
         mv src/GUI/PowerToolsExtensionPack/bin/Release/PowerToolsExtensionPack.vsix PowerToolsExtensionPack-${{ env.VERSION }}.vsix
 
     - name: Azure CLI login with federated credential
-      if: github.event_name != 'pull_request'
+      if: github.event_name != 'pull_request' && github.repository_owner == 'erikej'
       uses: azure/login@v3
       with:
         client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -110,7 +110,7 @@ jobs:
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     - name: Install dotnet sign
-      if: github.event_name != 'pull_request'
+      if: github.event_name != 'pull_request' && github.repository_owner == 'erikej'
       run: dotnet tool install --global sign --prerelease
 
     - name: Sign VSIX packages # Causes 4 signing requests - max is 5000 per month

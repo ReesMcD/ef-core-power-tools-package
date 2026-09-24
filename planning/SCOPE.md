@@ -128,7 +128,7 @@ We never write a plain-text connection string into `efcpt-config.json`.
 3. ~~**Upstream contribution.**~~ **Decided: all work stays in the fork** (`ReesMcD/ef-core-power-tools-package`). We don't open PRs against or publish to `ErikEJ/EFCorePowerTools`. We only *pull* upstream changes into the fork. Our engine is built and shipped from the fork (see task F8).
 4. **UI stack.** Recommendation: Vite + React + TypeScript (largest ecosystem, tree/form components readily available). Svelte would also be fine.
 5. **Config file naming.** Should we support `efpt.*config.json` (VS format) in v1 or only `efcpt-config.json`? Recommendation: `efcpt-config.json` only in v1, with an importer as a stretch goal.
-6. **Minimum Node version.** Recommendation: Node 20 LTS+.
+6. ~~**Minimum Node version.**~~ **Decided: Node 22 or newer.** Node 20 reached end of life in April 2026, and the test tooling (Vitest 5) needs 22.12+.
 
 ## Success criteria
 

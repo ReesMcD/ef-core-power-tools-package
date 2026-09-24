@@ -9,7 +9,8 @@ Planning docs for turning this fork of [EF Core Power Tools](https://github.com/
 | [PLAN.md](PLAN.md) | Phased delivery plan, architecture decisions, risks |
 | [TASKS.md](TASKS.md) | Task checklist grouped by phase |
 | [ENGINE_INTERFACE.md](ENGINE_INTERFACE.md) | The `efcpt --list-objects --json` contract, selection rules the UI must follow, measured engine sizes |
-| [spikes/](spikes/) | Throwaway proofs of concept (`list-objects.mjs`: Node → efcpt → JSON) |
+| [spikes/](spikes/) | Throwaway proofs of concept (`list-objects.mjs`: Node → efcpt → JSON, superseded by `efcpt-ui --list`) |
+| [../packages/efcpt-ui](../packages/efcpt-ui) | The npm package: launcher, headless `--generate` / `--list`, and (next) the web UI |
 
 ## TL;DR
 

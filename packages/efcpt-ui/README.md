@@ -4,7 +4,7 @@ Reverse engineer a database into EF Core `DbContext` and entity classes from any
 
 This is a fork of [EF Core Power Tools](https://github.com/ErikEJ/EFCorePowerTools) by ErikEJ (MIT). It is not the official tool.
 
-> **Status: early.** Headless `--generate` and `--list` work today. The web UI (pick tables, edit settings) is next. Engine downloads are not available yet, so you need to build the engine once (see [Engine](#engine)).
+> **Status: early.** The web UI, `--generate` and `--list` work. Engine downloads are not available yet, so you need to build the engine once (see [Engine](#engine)).
 
 ## Quick start
 
@@ -16,14 +16,27 @@ In `package.json`, one script per config (a project can have several):
 
 ```json
 "scripts": {
-  "db:sales": "efcpt-ui --config ./Data/Sales/efcpt-config.json --generate",
-  "db:sales:list": "efcpt-ui --config ./Data/Sales/efcpt-config.json --list"
+  "db:sales": "efcpt-ui --config ./Data/Sales/efcpt-config.json",
+  "db:sales:generate": "efcpt-ui --config ./Data/Sales/efcpt-config.json --generate"
 }
 ```
 
+`npm run db:sales` opens the UI in your browser. Without `--config`, it uses the project's only config, or lets you pick one or create a new one.
+
+### The UI
+
+- **Objects**: tables, views, stored procedures and functions, grouped by schema. Tick what to generate, filter by name, select whole groups, expand a table or view to leave out single columns, and add or remove exclusion rules such as `*Log`.
+- **Settings**: the config's options (names, file layout, code generation, type mappings, uncountable words). Options you don't change stay out of the file and keep the engine's defaults. Irregular words and plural/singular rules are edited in the file.
+- **Generate**: saves and runs the engine, showing the generated files, warnings and errors.
+- If no connection string is configured, the UI asks for one. It is kept in memory only, never written to disk.
+
+The UI runs on `127.0.0.1` only, behind a one-time token in the URL it prints. It stops when you close the tab or press Ctrl+C. Use `--no-open` to not open a browser and `--port` to choose the port.
+
+### Without the UI
+
 ```bash
 export SALES_DB="Server=.;Database=Sales;Trusted_Connection=True;Encrypt=false"
-npm run db:sales
+npm run db:sales:generate
 ```
 
 What happens:
@@ -96,6 +109,7 @@ Run `efcpt-ui --help`. Exit codes: `0` success, `1` generation failed, `2` usage
 cd packages/efcpt-ui
 npm ci
 npm test            # unit tests (fake engine)
+npm run build && npm run test:ui   # browser tests of the web UI (Playwright)
 npm run lint && npm run format:check && npm run typecheck
 npm run sync-schema # after changing samples/efcpt-config.schema.json
 

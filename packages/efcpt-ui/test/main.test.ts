@@ -82,7 +82,8 @@ describe('efcpt-ui main', () => {
       dir,
     );
     expect(code).toBe(0);
-    expect(io.stdout).toContain('  [x] Customers');
+    expect(io.stdout).toContain('  [x] Customers  (Id*, Name)');
+    expect(io.stdout).toContain('  [x] BigOrders');
     expect(io.stderr.join('\n')).toContain(
       'connection: environment variable SAMPLE_SHOP_DB, provider sqlite',
     );

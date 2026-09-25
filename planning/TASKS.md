@@ -45,7 +45,7 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 - [~] **L5** Engine locator: `--engine` (.dll via dotnet, .js/.mjs via node, else executable) → `EFCPT_UI_ENGINE` → download cache → `efcpt-ui-engine` on PATH if built for the same EF version (checked with `--version`). Still to do: the download itself (needs release assets, R5)
 - [x] **L6** Runtime check: `dotnet --list-runtimes` must have .NET 8+ (EF 8/9 engines) or .NET 10+ (EF 10), with a clear error and install link
 - [x] **L7** Engine runner: no shell, timeout, abort signal, parses the single JSON line, checks `schemaVersion`, streams stderr as progress, redacts connection strings and password-like values everywhere
-- [~] **L8** Config I/O: load (BOM), schema validation with Ajv draft-04 (type errors only: efcpt has defaults for every "required" option), write keeping key order, indentation, line endings and BOM. Selection logic mirrors the engine including `refresh-object-lists` (on by default). Still to do: creating a new config from a template (Phase 3; with a sensible `dbcontext-name`, see X9)
+- [x] **L8** Config I/O: load (BOM), schema validation with Ajv draft-04 (type errors only: efcpt has defaults for every "required" option), write keeping key order, indentation, line endings and BOM. Selection logic mirrors the engine including `refresh-object-lists` (on by default). New configs come from a template (`src/config/template.ts`)
 - [x] **L9** `--generate` headless mode (exit codes 0 / 1 generation failed / 2 setup problem) and `--list` (objects with what the next generate will create)
 - [x] **L10** 56 unit tests (fake engine, runs on all OSes) + end-to-end test against the real engine incl. `dotnet build` of the generated code
 
@@ -53,27 +53,35 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 
 ### Server (`packages/efcpt-ui/src/server`)
 
-- [ ] **S1** Local HTTP server bound to `127.0.0.1`, random port, per-session token (URL query, then a cookie), Origin/Host checks, serving the static SPA
-- [ ] **S2** `GET /api/session`: config path, project, EF version, provider, connection source (never the value)
-- [ ] **S3** `GET /api/configs` and `POST /api/configs` (list and create configs)
-- [ ] **S4** `GET /api/objects`: discovery through E1, cached for the session, `?refresh=1` to reload
-- [ ] **S5** `GET /api/config` and `PUT /api/config` (schema-validated)
-- [ ] **S6** `POST /api/generate`: saves the config, runs the engine, and streams progress and the result over SSE
-- [ ] **S7** `POST /api/connection/test` and `POST /api/connection` (in-memory only, optional save to user-secrets)
-- [ ] **S8** Lifecycle: open the browser (`open` package), heartbeat, exit when the tab closes or on SIGINT
+- [x] **S1** Local HTTP server (`node:http`) on `127.0.0.1`, free port or `--port`. One-time token in the URL → HttpOnly SameSite=Strict cookie (name includes the port). Host check (DNS rebinding), Origin check and `x-efcpt-ui` header on the API, CSP, no path traversal. Every JSON response and stream event is deep-redacted
+- [x] **S2** `GET /api/session`: config, configs in the project, project, EF version, provider, connection *source* (never the value), warnings
+- [x] **S3** `POST /api/session` switches config; a path that doesn't exist yet creates a config from a template (DbContext name from the database/file name or the project, root namespace, `efcpt-ui` section copied from the current config)
+- [x] **S4** `GET /api/objects`: discovery through the engine, cached per config/connection, `?refresh=1` to reload
+- [x] **S5** `GET /api/config` and `PUT /api/config` (type errors rejected with details; formatting preserved)
+- [x] **S6** `POST /api/generate`: runs the engine on the saved config and streams progress and the result as newline-delimited JSON; reloads the config afterwards (the engine may update the object lists)
+- [~] **S7** `POST /api/connection`: a connection typed in the UI is tested by reading the database and kept in memory only. Still to do: optional save to user-secrets
+- [x] **S8** Lifecycle: opens the browser (no dependency), heartbeat every 10 s, stops 15 s after the tab closes (unless reloaded), after 60 s without heartbeat, or on Ctrl+C
 
 ### Web (`packages/efcpt-ui/src/web`)
 
-- [ ] **W1** App shell: header (project, config, EF version, provider), navigation between the steps, dark/light theme
-- [ ] **W2** Config picker screen (several configs or none)
-- [ ] **W3** Connection screen (shows the source, enter a value, test)
-- [ ] **W4** Object tree: type → schema → object, tri-state checkboxes, search, select all/none, counts, virtualised for large DBs (1k+ objects)
-- [ ] **W5** Column and index exclusion when a table is expanded (`excludedColumns` / `excludedIndexes`)
-- [ ] **W6** Show existing `exclusionWildcard` rules and show which objects they affect. Basic add/remove
-- [ ] **W7** Settings form generated from the schema: Names, File layout, Code generation, Type mappings, Replacements. Tooltips from the schema and the `samples/*.md` docs. Handle dependent fields (T4 ↔ T4 split/template path, dacpac-only options)
-- [ ] **W8** "Save" and "Save & Generate" with an unsaved-changes indicator
-- [ ] **W9** Run screen: live log, generated files grouped by folder, warnings/errors, missing NuGet packages with a copy/run `dotnet add package` action
-- [ ] **W10** Keep behaviour in line with the VS view models (`PickTablesViewModel`, `ObjectTreeViewModel`, `ModelingOptionsModel`): write down any intentional differences
+- [x] **W1** App shell: header (project, EF version, config picker, connection source), tabs Objects / Settings / Generate, light/dark from the OS
+- [x] **W2** Config picker (several configs or none) and "New config…" in the header
+- [x] **W3** Connection panel (shows the source, enter a value, provider, test by connecting, hint for the `efcpt-ui` section)
+- [~] **W4** Object tree: type → schema → object, tri-state group checkboxes, filter, select all/none (of what's shown), counts. Large schemas (>150 objects) start collapsed. Still to do: true virtualisation for very large databases, regex filter (the VS extension has one)
+- [~] **W5** Column exclusion for tables and views (`excludedColumns`; primary keys can't be excluded). Still to do: `excludedIndexes` (the engine's object list doesn't include indexes yet)
+- [x] **W6** Exclusion rules (`exclusionWildcard`) per section: shown, added, removed; the checkboxes follow them
+- [x] **W7** Settings form generated from the schema with the engine's real defaults (the schema's are incomplete: `use-nullable-reference-types` defaults to true, `use-typed-tvp-parameters` is missing). Unchanged options stay out of the file; "default" removes one. Dependent options: T4 template path, T4 vs EntityTypeConfiguration T4 vs Split DbContext, merge-dacpacs. Irregular words and plural/singular rules are edited in the file
+- [x] **W8** Save / Save & Generate with an unsaved-changes indicator and a warning when leaving the page
+- [~] **W9** Generate tab: engine output, generated files grouped by folder, warnings/errors, readme link. Still to do: missing NuGet packages with a `dotnet add package` action
+- [x] **W10** Compared with the VS extension (`PickTablesViewModel`, `ObjectTreeViewModel`, `ModelingOptionsModel`); intentional differences are listed below
+
+### Differences from the Visual Studio extension (W10)
+
+- **Config format:** the UI edits `efcpt-config.json` (the CLI format), not the extension's `efpt.config.json`. An importer is X2.
+- **Options not in `efcpt-config.json`** (so not in the UI): Handlebars templates, "no default constructor", "no object filter" and "install NuGet packages". `IncludeConnectionString` is `enable-on-configuring`.
+- **Renaming** tables and columns (`efpt.renaming.json`) is X1. The engine already applies an existing renaming file.
+- **Search** is plain text; the extension also has a regex mode.
+- **Connections** come from the config's `efcpt-ui` section, environment, user secrets or appsettings rather than Server Explorer, and are never stored by the UI.
 
 ## Phase 4: Hardening and release
 
@@ -94,4 +102,4 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 - [ ] **X6** Engine download-on-demand with a local cache
 - [ ] **X7** Ship the launcher as a `dotnet tool` too, for people without Node
 - [ ] **X8** Remember UI state per config (last tab, tree expansion) in a gitignored `.efcpt-ui/` folder
-- [ ] **X9** When a config is new (or has no `names.dbcontext-name`), suggest a DbContext name from the project/database: the engine otherwise derives it from the connection string, which for SQLite file paths gives names like `tmpcachedbshopdbContext`
+- [x] **X9** New configs created from the UI get a DbContext name from the database or file name (or the project), instead of the engine's name derived from the whole `Data Source` path

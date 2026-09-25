@@ -28,7 +28,7 @@ export const helpText = `efcpt-ui - EF Core Power Tools UI
 Reverse engineer a database into EF Core DbContext and entity classes, driven by an efcpt-config.json.
 
 Usage:
-  efcpt-ui [--config <file>] [options]            open the UI (coming soon)
+  efcpt-ui [--config <file>] [options]            open the UI in your browser
   efcpt-ui --config <file> --generate [options]   generate code without the UI (for scripts and CI)
   efcpt-ui --config <file> --list [options]       list database objects and which ones the config selects
 

@@ -61,10 +61,17 @@ jobs:
 
     - run: npm test
 
+    - run: npm run build
+
+    - name: Browser tests of the web UI
+      if: runner.os == 'Linux'
+      run: |
+        npx playwright install --with-deps chromium
+        npm run test:ui
+
     - name: Pack, install and run
       shell: bash
       run: |
-        npm run build
         npm pack --pack-destination "$RUNNER_TEMP"
         mkdir "$RUNNER_TEMP/consumer" && cd "$RUNNER_TEMP/consumer"
         npm init -y > /dev/null

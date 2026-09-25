@@ -1,8 +1,23 @@
 import path from 'node:path';
-import { generate } from '../engine/run.js';
+import type { ResolvedConnection } from '../connection.js';
+import { generate, type GenerateRequest } from '../engine/run.js';
+import type { Session } from '../session.js';
 import { prepareEngine, printProblems, requireConnection, type CommandContext } from './common.js';
 
-const defaultTimeoutMs = 15 * 60_000;
+export const generateTimeoutMs = 15 * 60_000;
+const defaultTimeoutMs = generateTimeoutMs;
+
+/** The engine request for generating from a session's config. */
+export function generateRequest(session: Session, connection: ResolvedConnection): GenerateRequest {
+  return {
+    connection: connection.value,
+    provider: session.provider,
+    configPath: session.configPath,
+    // Generated paths in the config (file-layout) are relative to the project folder
+    outputDir: session.project.projectDir,
+    renamingPath: path.join(path.dirname(session.configPath), 'efpt.renaming.json'),
+  };
+}
 
 /** Generates the DbContext and entities without the UI. Returns the process exit code. */
 export async function runGenerate(context: CommandContext): Promise<number> {
@@ -11,21 +26,10 @@ export async function runGenerate(context: CommandContext): Promise<number> {
   const engine = await prepareEngine(context);
 
   const started = Date.now();
-  const doc = await generate(
-    engine,
-    {
-      connection: connection.value,
-      provider: session.provider,
-      configPath: session.configPath,
-      // Generated paths in the config (file-layout) are relative to the project folder
-      outputDir: session.project.projectDir,
-      renamingPath: path.join(path.dirname(session.configPath), 'efpt.renaming.json'),
-    },
-    {
-      timeoutMs: context.timeoutMs ?? defaultTimeoutMs,
-      onLog: context.verbose ? (line) => io.err(line) : undefined,
-    },
-  );
+  const doc = await generate(engine, generateRequest(session, connection), {
+    timeoutMs: context.timeoutMs ?? defaultTimeoutMs,
+    onLog: context.verbose ? (line) => io.err(line) : undefined,
+  });
 
   printProblems(io, doc.errors, doc.warnings);
   if (!doc.success) {

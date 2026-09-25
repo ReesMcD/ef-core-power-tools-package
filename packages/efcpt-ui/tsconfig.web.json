@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": [],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": false
+  },
+  "include": [
+    "web/src",
+    "src/server/api.ts",
+    "src/config/selection.ts",
+    "src/engine/contract.ts",
+    "src/config/efcpt-config.generated.ts"
+  ]
+}

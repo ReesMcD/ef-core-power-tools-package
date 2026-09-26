@@ -125,4 +125,25 @@ describe('helpers', () => {
     expect(redact('Server=db;Pwd=abc;Database=x')).toBe('Server=db;Pwd=***;Database=x');
     expect(redact('AccountKey="k==";')).toBe('AccountKey=***;');
   });
+
+  it('in WSL, finds user secrets set on the Windows side', async () => {
+    const usersRoot = await mkdtemp(path.join(tmpdir(), 'efcpt-ui-winusers-'));
+    const secrets = path.join(usersRoot, 'jdoe', 'AppData', 'Roaming', 'Microsoft', 'UserSecrets', 'abc-123');
+    await mkdir(secrets, { recursive: true });
+    await writeFile(
+      path.join(secrets, 'secrets.json'),
+      '{ "ConnectionStrings:Sales": "Server=sql01;User Id=app;Password=x" }',
+    );
+    const linuxRoot = await mkdtemp(path.join(tmpdir(), 'efcpt-ui-secrets-'));
+
+    const resolved = await resolveConnection({
+      env: {},
+      config: { 'efcpt-ui': { connection: { 'user-secrets': 'ConnectionStrings:Sales' } } },
+      projectDir: linuxRoot,
+      userSecretsId: 'abc-123',
+      userSecretsRoot: linuxRoot, // nothing on the Linux side
+      windowsUsersRoot: usersRoot,
+    });
+    expect(resolved?.value).toBe('Server=sql01;User Id=app;Password=x');
+  });
 });

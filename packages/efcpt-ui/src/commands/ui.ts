@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import type { CliArgs } from '../args.js';
+import { isWsl } from '../platform.js';
 import { UiController } from '../server/controller.js';
 import { startUiServer } from '../server/server.js';
 import type { Output } from './common.js';
@@ -12,14 +13,24 @@ const byeGraceMs = 15_000;
 
 export const defaultWebRoot = fileURLToPath(new URL('../web/', import.meta.url));
 
+/**
+ * The command that opens a URL in the default browser. Inside WSL that is the Windows browser, through
+ * rundll32.exe (WSL runs Windows programs, and the UI's 127.0.0.1 port is forwarded to Windows).
+ */
+export function browserCommand(
+  url: string,
+  platform: NodeJS.Platform = process.platform,
+  wsl = isWsl(),
+): [string, string[]] {
+  if (platform === 'darwin') return ['open', [url]];
+  if (platform === 'win32') return ['rundll32', ['url.dll,FileProtocolHandler', url]];
+  if (wsl) return ['rundll32.exe', ['url.dll,FileProtocolHandler', url]];
+  return ['xdg-open', [url]];
+}
+
 /** Opens a URL in the default browser. Failures are ignored: the URL is printed anyway. */
 export function openBrowser(url: string): void {
-  const [command, args] =
-    process.platform === 'darwin'
-      ? ['open', [url]]
-      : process.platform === 'win32'
-        ? ['rundll32', ['url.dll,FileProtocolHandler', url]]
-        : ['xdg-open', [url]];
+  const [command, args] = browserCommand(url);
   try {
     const child = spawn(command, args, { detached: true, stdio: 'ignore', windowsHide: true });
     child.on('error', () => {});

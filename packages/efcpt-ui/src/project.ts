@@ -15,6 +15,10 @@ export interface ProjectInfo {
   efVersion: EfVersion;
   /** Where the EF Core version came from, for display, for example "Microsoft.EntityFrameworkCore.Sqlite 10.0.1". */
   efVersionSource: string;
+  /** The efcpt provider name implied by the project's EF Core provider package, when there is exactly one. */
+  provider?: string;
+  /** The package the provider came from, for display. */
+  providerSource?: string;
   warnings: string[];
 }
 
@@ -51,6 +55,28 @@ const parser = new XMLParser({
 // Provider packages whose major version follows the EF Core major version
 const efPackagePattern =
   /^(Microsoft\.EntityFrameworkCore(\..+)?|Npgsql\.EntityFrameworkCore\..+|Pomelo\.EntityFrameworkCore\..+|Oracle\.EntityFrameworkCore|FirebirdSql\.EntityFrameworkCore\..+)$/i;
+
+// EF Core provider packages and the efcpt --provider name they correspond to
+const providerPackages: [RegExp, string][] = [
+  [/^Microsoft\.EntityFrameworkCore\.SqlServer$/i, 'mssql'],
+  [/^Npgsql\.EntityFrameworkCore\.PostgreSQL$/i, 'postgres'],
+  [/^Microsoft\.EntityFrameworkCore\.Sqlite(\.Core)?$/i, 'sqlite'],
+  [/^(Pomelo\.EntityFrameworkCore\.MySql|MySql\.EntityFrameworkCore)$/i, 'mysql'],
+  [/^Oracle\.EntityFrameworkCore$/i, 'oracle'],
+  [/^FirebirdSql\.EntityFrameworkCore\.Firebird$/i, 'firebird'],
+];
+
+/** The provider implied by the project's package references, if they name exactly one. */
+export function providerFromPackages(packageIds: string[]): { provider: string; source: string } | undefined {
+  const found = new Map<string, string>();
+  for (const id of packageIds) {
+    const match = providerPackages.find(([pattern]) => pattern.test(id));
+    if (match && !found.has(match[1])) found.set(match[1], id);
+  }
+  if (found.size !== 1) return undefined;
+  const [provider, source] = [...found][0]!;
+  return { provider, source };
+}
 
 async function parseMsBuild(file: string): Promise<MsBuildDocument> {
   try {
@@ -208,6 +234,7 @@ export async function readProject(projectPath: string): Promise<ProjectInfo> {
     );
   }
 
+  const provider = providerFromPackages(references.map((r) => r['@Include'] ?? '').filter(Boolean));
   const userSecretsId = expand(properties.get('UserSecretsId') ?? '', properties) || undefined;
 
   return {
@@ -218,6 +245,8 @@ export async function readProject(projectPath: string): Promise<ProjectInfo> {
     userSecretsId,
     efVersion,
     efVersionSource,
+    provider: provider?.provider,
+    providerSource: provider?.source,
     warnings,
   };
 }

@@ -95,14 +95,17 @@ jobs:
         cache: npm
         cache-dependency-path: packages/efcpt-ui/package-lock.json
 
-    - name: Build engine (EF Core 10)
+    - name: Build engine (EF Core 10) and the Visual Studio extension's code generator
       working-directory: .
-      run: dotnet build src/Core/efcpt.10/efcpt.10.csproj -c Release
+      run: |
+        dotnet build src/Core/efcpt.10/efcpt.10.csproj -c Release
+        dotnet build src/Core/efreveng100/efreveng100.csproj -c Release
 
     - run: npm ci
 
-    - name: End to end (generate from SQLite and compile the result)
+    - name: End to end (generate from SQLite, compile the result, parity with the VS extension)
       env:
         EFCPT_UI_E2E_ENGINE: ${{ github.workspace }}/src/Core/efcpt.10/bin/Release/net10.0/efcpt.10.dll
+        EFCPT_UI_E2E_REVENG: ${{ github.workspace }}/src/Core/efreveng100/bin/Release/net10.0/efreveng100.dll
         EFCPT_UI_E2E_BUILD: '1'
       run: npx vitest run test/e2e.test.ts

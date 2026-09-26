@@ -91,9 +91,12 @@ export function ConfigPicker(props: {
   busy: boolean;
   error?: string;
   onSelect(path: string): void;
+  onImport(vsConfigPath: string): void;
   onCancel?: () => void;
 }) {
-  const [newPath, setNewPath] = useState(props.session.configs.length ? '' : 'efcpt-config.json');
+  const [newPath, setNewPath] = useState(
+    props.session.configs.length || props.session.vsConfigs.length ? '' : 'efcpt-config.json',
+  );
   return (
     <section className="panel">
       <h2>Choose a config</h2>
@@ -112,6 +115,23 @@ export function ConfigPicker(props: {
         </>
       ) : (
         <p>No efcpt config was found in this project yet.</p>
+      )}
+      {props.session.vsConfigs.length > 0 && (
+        <div className="field">
+          <p>
+            Import from the Visual Studio extension. The selected objects and options are converted; the
+            original file is left as it is:
+          </p>
+          <ul className="config-list">
+            {props.session.vsConfigs.map((vsConfig) => (
+              <li key={vsConfig}>
+                <button disabled={props.busy} onClick={() => props.onImport(vsConfig)}>
+                  Import {vsConfig}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       <div className="field">
         <label htmlFor="new-config">Create a new config (path relative to the project)</label>

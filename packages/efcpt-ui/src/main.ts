@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { helpText, parseCliArgs, UsageError } from './args.js';
 import { runGenerate } from './commands/generate.js';
+import { runImportVs } from './commands/import-vs.js';
 import { consoleOutput, type Output } from './commands/common.js';
 import { runList } from './commands/list.js';
 import { runUi } from './commands/ui.js';
@@ -47,6 +48,8 @@ export async function main(
       io.out(packageVersion());
       return 0;
     }
+
+    if (args.importVs !== undefined) return await runImportVs({ args, io, cwd });
 
     // The UI resolves its own session: it can start without a config and without a connection
     if (!args.generate && !args.list) return await runUi({ args, env, io, cwd });

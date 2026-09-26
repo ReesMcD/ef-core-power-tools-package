@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { findProjectFile, majorOf, ProjectError, readProject } from '../src/project.js';
+import { findProjectFile, majorOf, ProjectError, providerFromPackages, readProject } from '../src/project.js';
 
 async function tempDir(): Promise<string> {
   return mkdtemp(path.join(tmpdir(), 'efcpt-ui-project-'));
@@ -119,5 +119,27 @@ describe('readProject', () => {
     expect(majorOf('10.*')).toBe(10);
     expect(majorOf('[8.0,9.0)')).toBe(8);
     expect(majorOf('')).toBeUndefined();
+  });
+});
+
+describe('providerFromPackages', () => {
+  it('maps the EF Core provider package to the efcpt provider name', () => {
+    expect(providerFromPackages(['Serilog', 'Npgsql.EntityFrameworkCore.PostgreSQL'])).toEqual({
+      provider: 'postgres',
+      source: 'Npgsql.EntityFrameworkCore.PostgreSQL',
+    });
+    expect(providerFromPackages(['Microsoft.EntityFrameworkCore.SqlServer'])?.provider).toBe('mssql');
+    expect(providerFromPackages(['Microsoft.EntityFrameworkCore.Sqlite.Core'])?.provider).toBe('sqlite');
+    expect(providerFromPackages(['Pomelo.EntityFrameworkCore.MySql'])?.provider).toBe('mysql');
+  });
+
+  it('gives up when there is no provider package, or several', () => {
+    expect(providerFromPackages(['Microsoft.EntityFrameworkCore.Design'])).toBeUndefined();
+    expect(
+      providerFromPackages([
+        'Microsoft.EntityFrameworkCore.SqlServer',
+        'Microsoft.EntityFrameworkCore.Sqlite',
+      ]),
+    ).toBeUndefined();
   });
 });

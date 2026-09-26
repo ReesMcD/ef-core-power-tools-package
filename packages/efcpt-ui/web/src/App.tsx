@@ -88,6 +88,20 @@ export function App() {
     }
   };
 
+  const importVs = async (path: string) => {
+    if (dirty && !window.confirm('Discard unsaved changes?')) return;
+    setBusy(true);
+    setError(undefined);
+    try {
+      await loadSession(await api.importVs(path));
+      setPicking(false);
+    } catch (e) {
+      setError(describe(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const connect = async (connection: string, provider: string) => {
     setBusy(true);
     setError(undefined);
@@ -225,6 +239,7 @@ export function App() {
             busy={busy}
             error={error}
             onSelect={(p) => void selectConfig(p)}
+            onImport={(p) => void importVs(p)}
             onCancel={picking ? () => setPicking(false) : undefined}
           />
         ) : needsConnection ? (

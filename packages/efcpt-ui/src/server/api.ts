@@ -22,6 +22,8 @@ export interface SessionInfo {
   configExists: boolean;
   /** Config files found in the project, relative to the project folder. */
   configs: string[];
+  /** Visual Studio extension configs (efpt.*config.json) not imported yet, relative to the project folder. */
+  vsConfigs: string[];
   project?: ProjectSummary;
   /** Where the connection comes from. Never contains the connection string itself. */
   connection?: { source: string; isDacpac: boolean };
@@ -54,6 +56,11 @@ export interface ConnectionRequest {
 /** POST /api/session: switch to another config (created from a template when it doesn't exist). */
 export interface SelectConfigRequest {
   configPath: string;
+}
+
+/** POST /api/import-vs: create an efcpt config from a Visual Studio extension config and switch to it. */
+export interface ImportVsRequest {
+  vsConfigPath: string;
 }
 
 /** One line of the POST /api/generate response (newline-delimited JSON). */

@@ -104,7 +104,16 @@ The section can also name the renaming file, relative to the config: `"renaming"
 ### SQL Server
 
 - **Local servers:** Microsoft.Data.SqlClient encrypts connections by default, so a local or Docker SQL Server with a self-signed certificate needs `TrustServerCertificate=True` in the connection string. efcpt-ui points this out when it's the problem, and explains other common connection errors too.
-- **Windows authentication** (`Trusted_Connection=True`) works on Windows. On macOS and Linux, use a SQL login or `Authentication=Active Directory Default` (Azure SQL).
+- **Windows authentication** works on Windows, as the account running efcpt-ui (tested in CI against LocalDB). For example:
+
+  ```text
+  Server=sqlserver01;Database=Sales;Integrated Security=True;TrustServerCertificate=True
+  Server=.\SQLEXPRESS;Database=Sales;Trusted_Connection=True;TrustServerCertificate=True
+  Server=(localdb)\MSSQLLocalDB;Database=Sales;Trusted_Connection=True
+  ```
+
+  A Windows authentication connection string holds no password, so an `appsettings.Development.json` entry you already have is a fine place for it: `"efcpt-ui": { "connection": { "appsettings": "appsettings.Development.json", "key": "ConnectionStrings:Sales" } }`. If it fails, efcpt-ui says whether the account has no access, Kerberos couldn't get a ticket (VPN, server name, SPN), or your identity didn't reach the server. On macOS and Linux, use a SQL login or `Authentication=Active Directory Default` (Azure SQL) instead.
+
 - **Database projects:** point at the built `.dacpac` instead of a database, with `--connection path/to/Database.dacpac` or `"efcpt-ui": { "connection": { "dacpac": "../Database/bin/Debug/Database.dacpac" } }`.
 - **Spatial and hierarchyid columns** are skipped (with a warning) unless you turn on `use-spatial` / `use-HierarchyId` under Settings → Type mappings and add the `Microsoft.EntityFrameworkCore.SqlServer.NetTopologySuite` / `.HierarchyId` packages.
 - **Stored procedures** whose result set can't be discovered (dynamic SQL) get a warning with options, for example `"use-legacy-resultset-discovery": true` on that procedure. Temp tables are handled by the fallback discovery.

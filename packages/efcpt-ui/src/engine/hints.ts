@@ -2,7 +2,7 @@
 // Microsoft.Data.SqlClient's messages, which say what failed but not what to change.
 
 interface Rule {
-  test: (errors: string, connection: string) => boolean;
+  test: (errors: string, connection: string, platform: NodeJS.Platform) => boolean;
   hint: (errors: string) => string;
 }
 
@@ -18,6 +18,22 @@ const rules: Rule[] = [
       "SQL Server's certificate is not trusted: connections are encrypted by default since Microsoft.Data.SqlClient 4. " +
       'For a local or development server, add TrustServerCertificate=True to the connection string. ' +
       'For a production server, give it a certificate your machine trusts.',
+  },
+  {
+    // Windows authentication reached the server without the user's identity (Kerberos delegation, "double hop")
+    test: (errors) => /Login failed for user 'NT AUTHORITY\\ANONYMOUS LOGON'/i.test(errors),
+    hint: () =>
+      "Windows authentication reached SQL Server as ANONYMOUS LOGON, so your identity wasn't passed on. This is a " +
+      'Kerberos problem: usually the server has no SPN registered, or you are connecting through another server. ' +
+      'Try the server by its fully qualified name, or ask your DBA to check the SPN.',
+  },
+  {
+    test: (errors, _connection, platform) =>
+      platform === 'win32' && /SSPI|target principal name is incorrect/i.test(errors),
+    hint: () =>
+      'Windows authentication could not get a Kerberos ticket for this server. Check that you are on the domain ' +
+      'network or VPN, try the fully qualified server name (sqlserver01.corp.example.com), and if it still fails, ' +
+      "ask your DBA to check the server's SPN.",
   },
   {
     test: (errors) => /SSPI|target principal name is incorrect/i.test(errors),
@@ -37,6 +53,16 @@ const rules: Rule[] = [
     },
   },
   {
+    test: (errors) => /Login failed for user '[^']+\\[^']+'/i.test(errors),
+    hint: (errors) => {
+      const account = /Login failed for user '([^']+\\[^']+)'/i.exec(errors)?.[1] ?? '';
+      return (
+        `Windows authentication worked, but ${account} has no login on this server or no access to the ` +
+        'database. Ask your DBA to grant it access, or run efcpt-ui as an account that has it.'
+      );
+    },
+  },
+  {
     test: (errors) => /Login failed for user/i.test(errors),
     hint: () =>
       'Check the user name and password. SQL logins also need the server to allow SQL Server authentication ' +
@@ -52,7 +78,11 @@ const rules: Rule[] = [
 ];
 
 /** A hint for the first SQL Server connection error that has one, or undefined. */
-export function connectionHint(errors: string[], connection: string): string | undefined {
+export function connectionHint(
+  errors: string[],
+  connection: string,
+  platform: NodeJS.Platform = process.platform,
+): string | undefined {
   const text = errors.join('\n');
-  return rules.find((rule) => rule.test(text, connection))?.hint(text);
+  return rules.find((rule) => rule.test(text, connection, platform))?.hint(text);
 }

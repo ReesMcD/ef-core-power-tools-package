@@ -131,3 +131,62 @@ jobs:
         EFCPT_UI_E2E_MSSQL: Server=localhost,1433;Database=Tricky;User Id=sa;Password=Efcpt_Ci_Test_1234;TrustServerCertificate=true
         EFCPT_UI_E2E_BUILD: '1'
       run: npx vitest run test/e2e.test.ts
+
+  # Windows authentication end to end: LocalDB only accepts Windows (integrated) authentication, so this
+  # proves the CLI -> engine -> SqlClient -> SSPI path on Windows, including backslashes in the server name
+  e2e-windows-auth:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '10.0.x'
+
+    - uses: actions/setup-node@v5
+      with:
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: packages/efcpt-ui/package-lock.json
+
+    - name: Start SQL Server LocalDB
+      shell: pwsh
+      working-directory: .
+      run: |
+        if (-not (Get-Command SqlLocalDB -ErrorAction SilentlyContinue)) {
+          choco install sqllocaldb -y --no-progress
+          $env:PATH = [Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' + $env:PATH
+        }
+        SqlLocalDB create MSSQLLocalDB -s 2>$null
+        SqlLocalDB start MSSQLLocalDB
+        SqlLocalDB info MSSQLLocalDB
+
+    - name: Create the test database (Windows authentication)
+      shell: powershell
+      working-directory: .
+      run: |
+        $connection = New-Object System.Data.SqlClient.SqlConnection 'Server=(localdb)\MSSQLLocalDB;Integrated Security=true;Database=master'
+        $connection.Open()
+        $script = Get-Content -Raw packages\efcpt-ui\test\fixtures\mssql\tricky.sql
+        foreach ($batch in ($script -split '(?m)^\s*GO\s*$')) {
+          if ($batch.Trim()) {
+            $command = $connection.CreateCommand()
+            $command.CommandText = $batch
+            [void]$command.ExecuteNonQuery()
+          }
+        }
+        $connection.Close()
+
+    - name: Build engine (EF Core 10)
+      working-directory: .
+      run: dotnet build src/Core/efcpt.10/efcpt.10.csproj -c Release
+
+    - run: npm ci
+
+    - name: End to end with Windows authentication
+      env:
+        EFCPT_UI_E2E_ENGINE: ${{ github.workspace }}\src\Core\efcpt.10\bin\Release\net10.0\efcpt.10.dll
+        EFCPT_UI_E2E_MSSQL: Server=(localdb)\MSSQLLocalDB;Database=Tricky;Trusted_Connection=True
+        EFCPT_UI_E2E_BUILD: '1'
+      run: npx vitest run test/e2e.test.ts

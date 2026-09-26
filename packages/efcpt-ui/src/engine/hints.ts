@@ -1,8 +1,16 @@
+import { isWsl } from '../platform.js';
+
 // Plain-language next steps for the SQL Server connection errors people hit first. The engine reports
 // Microsoft.Data.SqlClient's messages, which say what failed but not what to change.
 
+/** Where efcpt-ui runs. */
+export interface HintContext {
+  platform: NodeJS.Platform;
+  wsl: boolean;
+}
+
 interface Rule {
-  test: (errors: string, connection: string, platform: NodeJS.Platform) => boolean;
+  test: (errors: string, connection: string, where: HintContext) => boolean;
   hint: (errors: string) => string;
 }
 
@@ -28,12 +36,20 @@ const rules: Rule[] = [
       'Try the server by its fully qualified name, or ask your DBA to check the SPN.',
   },
   {
-    test: (errors, _connection, platform) =>
-      platform === 'win32' && /SSPI|target principal name is incorrect/i.test(errors),
+    test: (errors, _connection, where) =>
+      where.platform === 'win32' && /SSPI|target principal name is incorrect/i.test(errors),
     hint: () =>
       'Windows authentication could not get a Kerberos ticket for this server. Check that you are on the domain ' +
       'network or VPN, try the fully qualified server name (sqlserver01.corp.example.com), and if it still fails, ' +
       "ask your DBA to check the server's SPN.",
+  },
+  {
+    test: (errors, _connection, where) =>
+      where.wsl && /SSPI|target principal name is incorrect|Kerberos|GSSAPI/i.test(errors),
+    hint: () =>
+      'Windows authentication does not work from WSL: efcpt-ui and the engine run as Linux programs there, ' +
+      'without your Windows login. Run efcpt-ui from PowerShell or cmd instead (the same checkout works from ' +
+      'both), or use a SQL login.',
   },
   {
     test: (errors) => /SSPI|target principal name is incorrect/i.test(errors),
@@ -81,8 +97,8 @@ const rules: Rule[] = [
 export function connectionHint(
   errors: string[],
   connection: string,
-  platform: NodeJS.Platform = process.platform,
+  where: HintContext = { platform: process.platform, wsl: isWsl() },
 ): string | undefined {
   const text = errors.join('\n');
-  return rules.find((rule) => rule.test(text, connection, platform))?.hint(text);
+  return rules.find((rule) => rule.test(text, connection, where))?.hint(text);
 }

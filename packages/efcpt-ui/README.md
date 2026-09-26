@@ -8,17 +8,32 @@ This is a fork of [EF Core Power Tools](https://github.com/ErikEJ/EFCorePowerToo
 
 ## Try it from a checkout
 
-```bash
+Needs the .NET 10 SDK (plus the .NET 8 runtime for EF Core 8 or 9 projects) and Node 22 or newer. It runs from PowerShell, cmd, WSL, macOS and Linux.
+
+**PowerShell or cmd**
+
+```powershell
 git clone https://github.com/ReesMcD/ef-core-power-tools-package.git
 cd ef-core-power-tools-package
-dotnet build src/Core/efcpt.10/efcpt.10.csproj -c Release   # the engine for your EF Core version: efcpt.8, efcpt.9 or efcpt.10
-cd packages/efcpt-ui
-npm ci && npm run build
+dotnet build src\Core\efcpt.10\efcpt.10.csproj -c Release   # the engine for your EF Core version: efcpt.8, efcpt.9 or efcpt.10
+cd packages\efcpt-ui
+npm ci
+npm run build
 npm link                                                    # puts efcpt-ui on your PATH
 
 cd <your .NET project>
 efcpt-ui                                                    # or: efcpt-ui --list
 ```
+
+Connection strings in an environment variable: `$env:MY_DB = "Server=...;Integrated Security=True;TrustServerCertificate=True"` in PowerShell, `set "MY_DB=Server=...;Integrated Security=True;TrustServerCertificate=True"` in cmd, then `efcpt-ui --connection-env MY_DB`.
+
+If PowerShell says _running scripts is disabled on this system_, your execution policy blocks the `efcpt-ui.ps1` launcher that npm creates. Run `efcpt-ui.cmd` instead, which works under any policy, or allow local scripts with `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+
+**WSL, macOS and Linux**
+
+The same steps with `/` paths, and `export MY_DB="..."`. In WSL, efcpt-ui opens the UI in your Windows browser.
+
+**Windows authentication** (`Integrated Security=True` / `Trusted_Connection=True`) needs efcpt-ui to run on Windows, from PowerShell or cmd. In WSL, efcpt-ui and the engine are Linux programs without your Windows login, so use WSL only with SQL logins. Keep one checkout per side: `npm ci` and `npm link` are per operating system.
 
 efcpt-ui finds the engine built in the checkout by itself. Try it on a branch or a copy of your project: generating overwrites the output folder and removes files it generated before that are no longer needed (`soft-delete-obsolete-files`).
 
@@ -104,7 +119,7 @@ The section can also name the renaming file, relative to the config: `"renaming"
 ### SQL Server
 
 - **Local servers:** Microsoft.Data.SqlClient encrypts connections by default, so a local or Docker SQL Server with a self-signed certificate needs `TrustServerCertificate=True` in the connection string. efcpt-ui points this out when it's the problem, and explains other common connection errors too.
-- **Windows authentication** works on Windows, as the account running efcpt-ui (tested in CI against LocalDB). For example:
+- **Windows authentication** works when efcpt-ui runs on Windows (PowerShell or cmd, not WSL), as the account running it (tested in CI against LocalDB). For example:
 
   ```text
   Server=sqlserver01;Database=Sales;Integrated Security=True;TrustServerCertificate=True

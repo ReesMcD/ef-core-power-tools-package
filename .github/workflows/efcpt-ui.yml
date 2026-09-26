@@ -79,6 +79,45 @@ jobs:
         npx efcpt-ui --version
         npx efcpt-ui --help > /dev/null
 
+    # Installed globally, as `npm link` or `npm i -g` would, then run from each Windows shell against the
+    # sample project (with the fake engine): config discovery, project reading and a connection string with
+    # semicolons passed to the engine
+    - name: Install globally (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        npm install -g --no-audit --no-fund (Get-ChildItem "$env:RUNNER_TEMP\efcpt-ui-*.tgz").FullName
+        Copy-Item -Recurse test\fixtures\sample-project "$env:RUNNER_TEMP\sample"
+
+    - name: Run from cmd
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: |
+        cd /d "%RUNNER_TEMP%\sample"
+        call efcpt-ui --version || exit /b 1
+        call efcpt-ui --list --engine "%GITHUB_WORKSPACE%\packages\efcpt-ui\test\fixtures\fake-engine.mjs" --connection "Data Source=shop.db;Cache=Shared" || exit /b 1
+
+    - name: Run from PowerShell 7
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        Set-Location "$env:RUNNER_TEMP\sample"
+        efcpt-ui --version
+        efcpt-ui --list --engine "$env:GITHUB_WORKSPACE\packages\efcpt-ui\test\fixtures\fake-engine.mjs" --connection "Data Source=shop.db;Cache=Shared"
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+
+    - name: Run from Windows PowerShell 5.1, including under a Restricted execution policy
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: |
+        Set-Location "$env:RUNNER_TEMP\sample"
+        efcpt-ui --version
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        # Locked-down machines block the npm-generated efcpt-ui.ps1; the .cmd shim still works
+        Set-ExecutionPolicy -Scope Process -ExecutionPolicy Restricted -Force
+        efcpt-ui.cmd --list --engine "$env:GITHUB_WORKSPACE\packages\efcpt-ui\test\fixtures\fake-engine.mjs" --connection "Data Source=shop.db;Cache=Shared"
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+
   e2e:
     runs-on: ubuntu-latest
 

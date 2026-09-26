@@ -1,7 +1,8 @@
-import { readFile } from 'node:fs/promises';
+import { access, readdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import type { EfcptConfig } from './config/io.js';
+import { isWsl } from './platform.js';
 
 /** Optional `efcpt-ui` section in efcpt-config.json. efcpt keeps unknown top-level sections when it rewrites the file. */
 export interface UiConfigSection {
@@ -33,6 +34,8 @@ export interface ConnectionOptions {
   userSecretsId?: string;
   /** Overrides where user secrets are read from, for tests. */
   userSecretsRoot?: string;
+  /** In WSL, the Windows users folder whose user secrets are also searched. False to skip; for tests. */
+  windowsUsersRoot?: string | false;
 }
 
 export const connectionEnvVar = 'EFCPT_CONNECTION';
@@ -122,6 +125,34 @@ export function userSecretsFile(id: string, env: NodeJS.ProcessEnv, root?: strin
   return path.join(homedir(), '.microsoft', 'usersecrets', id, 'secrets.json');
 }
 
+/**
+ * User secrets set with `dotnet user-secrets` on Windows live under %APPDATA%, which a WSL process doesn't
+ * see as its home. Finds this project's secrets there (the UserSecretsId is a GUID, so a match is the project's).
+ */
+export async function windowsUserSecretsFiles(id: string, usersRoot = '/mnt/c/Users'): Promise<string[]> {
+  const found: string[] = [];
+  for (const user of await readdir(usersRoot).catch(() => [] as string[])) {
+    const file = path.join(
+      usersRoot,
+      user,
+      'AppData',
+      'Roaming',
+      'Microsoft',
+      'UserSecrets',
+      id,
+      'secrets.json',
+    );
+    if (
+      await access(file).then(
+        () => true,
+        () => false,
+      )
+    )
+      found.push(file);
+  }
+  return found;
+}
+
 async function fromReference(
   reference: ConnectionReference,
   options: ConnectionOptions,
@@ -142,7 +173,17 @@ async function fromReference(
         `efcpt-ui.connection uses user-secrets, but the project has no UserSecretsId (run: dotnet user-secrets init)`,
       );
     }
-    const file = userSecretsFile(options.userSecretsId, options.env, options.userSecretsRoot);
+    let file = userSecretsFile(options.userSecretsId, options.env, options.userSecretsRoot);
+    const windowsUsersRoot = options.windowsUsersRoot ?? (isWsl() ? '/mnt/c/Users' : false);
+    if (
+      windowsUsersRoot &&
+      !(await access(file).then(
+        () => true,
+        () => false,
+      ))
+    ) {
+      file = (await windowsUserSecretsFiles(options.userSecretsId, windowsUsersRoot))[0] ?? file;
+    }
     const value = lookupKey(await readJsonFile(file, 'user secrets'), key);
     if (!value)
       throw new ConnectionError(`User secret '${key}' not found (dotnet user-secrets set "${key}" "...")`);

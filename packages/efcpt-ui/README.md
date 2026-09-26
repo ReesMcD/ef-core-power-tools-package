@@ -31,7 +31,7 @@ If PowerShell says _running scripts is disabled on this system_, your execution 
 
 **WSL, macOS and Linux**
 
-The same steps with `/` paths, and `export MY_DB="..."`. In WSL, efcpt-ui opens the UI in your Windows browser.
+The same steps with `/` paths, and `export MY_DB="..."`. In WSL, efcpt-ui opens the UI in your Windows browser. A connection in the config's `efcpt-ui` section works there too: `appsettings` files are read from the project, and user secrets set with `dotnet user-secrets` on Windows are found. Windows environment variables are not visible in WSL unless you share them with `WSLENV`.
 
 **Windows authentication** (`Integrated Security=True` / `Trusted_Connection=True`) needs efcpt-ui to run on Windows, from PowerShell or cmd. In WSL, efcpt-ui and the engine are Linux programs without your Windows login, so use WSL only with SQL logins. Keep one checkout per side: `npm ci` and `npm link` are per operating system.
 

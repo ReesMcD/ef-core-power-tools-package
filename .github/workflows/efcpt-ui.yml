@@ -82,6 +82,21 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
 
+    # Throwaway SQL Server for the SQL Server end to end test; the password only exists inside this job
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_SA_PASSWORD: Efcpt_Ci_Test_1234
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P Efcpt_Ci_Test_1234 -C -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+
     steps:
     - uses: actions/checkout@v7
 
@@ -103,9 +118,16 @@ jobs:
 
     - run: npm ci
 
-    - name: End to end (generate from SQLite, compile the result, parity with the VS extension)
+    - name: Create the SQL Server test database
+      working-directory: .
+      run: |
+        docker cp packages/efcpt-ui/test/fixtures/mssql/tricky.sql ${{ job.services.mssql.id }}:/tmp/tricky.sql
+        docker exec ${{ job.services.mssql.id }} /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P Efcpt_Ci_Test_1234 -C -I -b -i /tmp/tricky.sql
+
+    - name: End to end (SQLite and SQL Server, compile the result, parity with the VS extension)
       env:
         EFCPT_UI_E2E_ENGINE: ${{ github.workspace }}/src/Core/efcpt.10/bin/Release/net10.0/efcpt.10.dll
         EFCPT_UI_E2E_REVENG: ${{ github.workspace }}/src/Core/efreveng100/bin/Release/net10.0/efreveng100.dll
+        EFCPT_UI_E2E_MSSQL: Server=localhost,1433;Database=Tricky;User Id=sa;Password=Efcpt_Ci_Test_1234;TrustServerCertificate=true
         EFCPT_UI_E2E_BUILD: '1'
       run: npx vitest run test/e2e.test.ts

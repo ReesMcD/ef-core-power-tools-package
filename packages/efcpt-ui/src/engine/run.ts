@@ -1,4 +1,5 @@
 import { redact } from '../redact.js';
+import { connectionHint } from './hints.js';
 import {
   supportedSchemaVersion,
   type EngineDocument,
@@ -121,6 +122,14 @@ async function runEngine(
   return doc;
 }
 
+/** Adds what to do next to a failed run's last error, for the connection errors that need explaining. */
+function withHint<T extends EngineDocument>(doc: T, connection: string): T {
+  if (doc.success || !doc.errors?.length) return doc;
+  const hint = connectionHint(doc.errors, connection);
+  if (hint) doc.errors[doc.errors.length - 1] += `\nHint: ${hint}`;
+  return doc;
+}
+
 export async function listObjects(
   engine: Engine,
   request: ListObjectsRequest,
@@ -128,7 +137,7 @@ export async function listObjects(
 ): Promise<ListObjectsDocument> {
   const doc = await runEngine(engine, listObjectsArgs(request), [request.connection], options);
   if (doc.command !== 'list-objects') throw new EngineError(`Unexpected engine result '${doc.command}'`);
-  return doc;
+  return withHint(doc, request.connection);
 }
 
 export async function generate(
@@ -138,5 +147,5 @@ export async function generate(
 ): Promise<GenerateDocument> {
   const doc = await runEngine(engine, generateArgs(request), [request.connection], options);
   if (doc.command !== 'generate') throw new EngineError(`Unexpected engine result '${doc.command}'`);
-  return doc;
+  return withHint(doc, request.connection);
 }

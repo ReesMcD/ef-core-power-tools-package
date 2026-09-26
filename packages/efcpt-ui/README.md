@@ -101,6 +101,15 @@ Paths in this section are relative to the project folder. The engine keeps this 
 
 The section can also name the renaming file, relative to the config: `"renaming": "efpt.Sales.renaming.json"` (default `efpt.renaming.json`).
 
+### SQL Server
+
+- **Local servers:** Microsoft.Data.SqlClient encrypts connections by default, so a local or Docker SQL Server with a self-signed certificate needs `TrustServerCertificate=True` in the connection string. efcpt-ui points this out when it's the problem, and explains other common connection errors too.
+- **Windows authentication** (`Trusted_Connection=True`) works on Windows. On macOS and Linux, use a SQL login or `Authentication=Active Directory Default` (Azure SQL).
+- **Database projects:** point at the built `.dacpac` instead of a database, with `--connection path/to/Database.dacpac` or `"efcpt-ui": { "connection": { "dacpac": "../Database/bin/Debug/Database.dacpac" } }`.
+- **Spatial and hierarchyid columns** are skipped (with a warning) unless you turn on `use-spatial` / `use-HierarchyId` under Settings → Type mappings and add the `Microsoft.EntityFrameworkCore.SqlServer.NetTopologySuite` / `.HierarchyId` packages.
+- **Stored procedures** whose result set can't be discovered (dynamic SQL) get a warning with options, for example `"use-legacy-resultset-discovery": true` on that procedure. Temp tables are handled by the fallback discovery.
+- Tested in CI against SQL Server 2022 with triggers, sequences, temporal tables, filtered indexes, table-valued parameters, same-named tables in different schemas and C# keyword names. The generated code must build with warnings as errors.
+
 ## Choosing objects
 
 `--list` shows every table, view, stored procedure and function, and marks the ones the next `--generate` will create:

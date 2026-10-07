@@ -502,7 +502,7 @@ namespace RevEng.Core.Routines.Procedures
                         Sb.AppendLine("{");
                         using (Sb.Indent())
                         {
-                            Sb.AppendLine("propertyType = Nullable.GetUnderlyingType(propertyType);");
+                            Sb.AppendLine("propertyType = Nullable.GetUnderlyingType(propertyType) ?? propertyType;");
                         }
 
                         Sb.AppendLine("}");

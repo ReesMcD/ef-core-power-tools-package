@@ -1,6 +1,7 @@
-import { access } from 'node:fs/promises';
+import { access, readdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { EfVersion } from '../project.js';
 import { runProcess } from './process.js';
 
@@ -71,24 +72,55 @@ async function exists(file: string): Promise<boolean> {
   );
 }
 
+/** The repository root when efcpt-ui runs from a checkout (packages/efcpt-ui/{src,dist}/engine/locate). */
+export const checkoutRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
+
+/**
+ * An engine built in a checkout of this repository (src/Core/efcpt.N/bin/<Release|Debug>/<tfm>/efcpt.N.dll),
+ * so efcpt-ui run from a checkout needs no --engine or EFCPT_UI_ENGINE. Release builds win over Debug builds.
+ */
+export async function findCheckoutEngine(
+  repoRoot: string,
+  efVersion: EfVersion,
+): Promise<string | undefined> {
+  for (const configuration of ['Release', 'Debug']) {
+    const bin = path.join(repoRoot, 'src', 'Core', `efcpt.${efVersion}`, 'bin', configuration);
+    const frameworks = (await readdir(bin).catch(() => [] as string[])).filter((f) => f.startsWith('net'));
+    for (const framework of frameworks.sort().reverse()) {
+      const dll = path.join(bin, framework, `efcpt.${efVersion}.dll`);
+      if (await exists(dll)) return dll;
+    }
+  }
+  return undefined;
+}
+
 export interface LocateOptions {
   efVersion: EfVersion;
   enginePath?: string;
   env: NodeJS.ProcessEnv;
   cacheRoot?: string;
+  /** Repository checkout to look for a built engine in, or false to skip; defaults to {@link checkoutRoot}. */
+  repoRoot?: string | false;
   /** Check the dotnet tool on PATH; disabled in tests. */
   searchPath?: boolean;
 }
 
 /**
  * Finds the engine for the project's EF Core version, in order:
- * --engine, EFCPT_UI_ENGINE, the download cache, then the efcpt-ui-engine dotnet tool on PATH.
+ * --engine, EFCPT_UI_ENGINE, an engine built in this repository checkout, the download cache, then the
+ * efcpt-ui-engine dotnet tool on PATH.
  */
 export async function locateEngine(options: LocateOptions): Promise<Engine> {
   if (options.enginePath) return engineFromPath(options.enginePath, `--engine ${options.enginePath}`);
 
   const fromEnv = options.env[engineEnvVar];
   if (fromEnv) return engineFromPath(fromEnv, `${engineEnvVar}=${fromEnv}`);
+
+  // EFCPT_UI_SKIP_CHECKOUT_ENGINE=1 ignores engines built in the checkout (tests)
+  const repoRoot =
+    options.repoRoot ?? (options.env['EFCPT_UI_SKIP_CHECKOUT_ENGINE'] === '1' ? false : checkoutRoot);
+  const built = repoRoot ? await findCheckoutEngine(repoRoot, options.efVersion) : undefined;
+  if (built) return engineFromPath(built, `built in this checkout ${built}`);
 
   const cached = cachedEnginePath(options.cacheRoot ?? defaultCacheRoot(options.env), options.efVersion);
   if (await exists(cached)) return engineFromPath(cached, `cache ${cached}`);
@@ -107,10 +139,19 @@ export async function locateEngine(options: LocateOptions): Promise<Engine> {
     }
   }
 
+  const project = `src/Core/efcpt.${options.efVersion}/efcpt.${options.efVersion}.csproj`;
+  // Running from a checkout: the build is all that's missing
+  if (repoRoot && (await exists(path.join(repoRoot, project)))) {
+    throw new EngineNotFoundError(
+      `No engine found for EF Core ${options.efVersion}.${toolMismatch}\n` +
+        `Build it once in this checkout and efcpt-ui will find it:\n` +
+        `  dotnet build "${path.join(repoRoot, project)}" -c Release`,
+    );
+  }
   throw new EngineNotFoundError(
     `No engine found for EF Core ${options.efVersion}.${toolMismatch}\n` +
       `Engine downloads are not available yet. Build the engine from this repository and point efcpt-ui at it:\n` +
-      `  dotnet build src/Core/efcpt.${options.efVersion}/efcpt.${options.efVersion}.csproj -c Release\n` +
+      `  dotnet build ${project} -c Release\n` +
       `  efcpt-ui --engine <path to efcpt.${options.efVersion}.dll> ...   (or set ${engineEnvVar})`,
   );
 }

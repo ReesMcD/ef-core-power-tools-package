@@ -176,6 +176,12 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
         json(response, 200, await controller.info());
         return;
       }
+      case 'POST /api/import-vs': {
+        const body = (await readJsonBody(request)) as { vsConfigPath?: unknown };
+        await controller.importVs(typeof body.vsConfigPath === 'string' ? body.vsConfigPath : '');
+        json(response, 200, await controller.info());
+        return;
+      }
       case 'GET /api/config':
         json(response, 200, await controller.getConfig());
         return;

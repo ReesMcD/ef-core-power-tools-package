@@ -34,6 +34,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 export const api = {
   session: () => call<SessionInfo>('GET', '/api/session'),
   selectConfig: (configPath: string) => call<SessionInfo>('POST', '/api/session', { configPath }),
+  importVs: (vsConfigPath: string) => call<SessionInfo>('POST', '/api/import-vs', { vsConfigPath }),
   config: () => call<ConfigResponse>('GET', '/api/config'),
   saveConfig: (config: EfcptConfig) => call<ConfigResponse>('PUT', '/api/config', { config }),
   objects: (refresh = false) => call<ObjectsResponse>('GET', `/api/objects${refresh ? '?refresh=1' : ''}`),

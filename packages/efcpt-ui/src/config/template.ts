@@ -75,3 +75,23 @@ export function createConfigTemplate(options: NewConfigOptions): EfcptConfig {
   config['type-mappings'] = { 'use-DateOnly-TimeOnly': true } as EfcptConfig['type-mappings'];
   return config;
 }
+
+/**
+ * Fills in the names efcpt only suggests for configs it creates itself. Without a root namespace the engine
+ * generates `namespace .Models;`. Returns the keys that were added.
+ */
+export function completeNames(config: EfcptConfig, options: NewConfigOptions): string[] {
+  const names = (config.names ?? {}) as Record<string, unknown>;
+  const added: string[] = [];
+  const blank = (value: unknown) => typeof value !== 'string' || value.trim() === '';
+  if (blank(names['root-namespace'])) {
+    names['root-namespace'] = options.rootNamespace;
+    added.push('root-namespace');
+  }
+  if (blank(names['dbcontext-name'])) {
+    names['dbcontext-name'] = suggestDbContextName(options.connection, options.projectName);
+    added.push('dbcontext-name');
+  }
+  if (added.length > 0) config.names = names as EfcptConfig['names'];
+  return added;
+}

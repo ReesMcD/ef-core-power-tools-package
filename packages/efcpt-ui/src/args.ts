@@ -7,6 +7,7 @@ export interface CliArgs {
   connectionEnv?: string;
   provider?: string;
   engine?: string;
+  importVs?: string;
   port?: number;
   open: boolean;
   generate: boolean;
@@ -31,14 +32,16 @@ Usage:
   efcpt-ui [--config <file>] [options]            open the UI in your browser
   efcpt-ui --config <file> --generate [options]   generate code without the UI (for scripts and CI)
   efcpt-ui --config <file> --list [options]       list database objects and which ones the config selects
+  efcpt-ui --import-vs <efpt.config.json>         convert a Visual Studio extension config to efcpt-config.json
 
 Options:
-  -c, --config <file>          efcpt-config.json to use. Default: the only efcpt config found in the project
+  -c, --config <file>          efcpt-config.json to use. Default: the only efcpt config found in the project,
+                               or efcpt-config.json in the current folder when there is none yet
   -p, --project <csproj>       .NET project. Default: the nearest .csproj at or above the config
       --connection <string>    Connection string, or path to a .dacpac
       --connection-env <var>   Read the connection string from this environment variable
       --provider <name>        mssql, postgres, sqlite, oracle, mysql, firebird or snowflake.
-                               Default: inferred from the connection string
+                               Default: from the project's EF Core provider package or the connection string
       --engine <path>          Engine to use (efcpt.<N>.dll or efcpt-ui-engine). Also EFCPT_UI_ENGINE
       --port <number>          UI port (default: a free port)
       --no-open                Don't open the browser
@@ -66,6 +69,7 @@ export function parseCliArgs(argv: string[]): CliArgs {
         'connection-env': { type: 'string' },
         provider: { type: 'string' },
         engine: { type: 'string' },
+        'import-vs': { type: 'string' },
         port: { type: 'string' },
         'no-open': { type: 'boolean', default: false },
         generate: { type: 'boolean', default: false },
@@ -87,6 +91,9 @@ export function parseCliArgs(argv: string[]): CliArgs {
       throw new UsageError(`--port must be a number from 0 to 65535`);
   }
   if (values.generate && values.list) throw new UsageError('Use either --generate or --list, not both');
+  if (values['import-vs'] !== undefined && (values.generate || values.list)) {
+    throw new UsageError('--import-vs only creates the config; run --list or --generate afterwards');
+  }
 
   return {
     config: values.config,
@@ -95,6 +102,7 @@ export function parseCliArgs(argv: string[]): CliArgs {
     connectionEnv: values['connection-env'],
     provider: values.provider,
     engine: values.engine,
+    importVs: values['import-vs'],
     port,
     open: !values['no-open'],
     generate: values.generate,

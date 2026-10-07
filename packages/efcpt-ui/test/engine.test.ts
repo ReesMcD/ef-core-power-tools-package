@@ -126,7 +126,7 @@ describe('locateEngine', () => {
   it('uses --engine, then EFCPT_UI_ENGINE, then the cache', async () => {
     const cacheRoot = await mkdtemp(path.join(tmpdir(), 'efcpt-ui-cache-'));
     const env = { EFCPT_UI_ENGINE: '/env/efcpt.10.dll' };
-    const common = { efVersion: 10 as const, cacheRoot, searchPath: false };
+    const common = { efVersion: 10 as const, cacheRoot, repoRoot: false as const, searchPath: false };
 
     expect((await locateEngine({ ...common, env, enginePath: '/flag/efcpt.10.dll' })).description).toMatch(
       /^--engine/,
@@ -141,11 +141,38 @@ describe('locateEngine', () => {
 
   it('explains how to get an engine when none is found', async () => {
     const cacheRoot = await mkdtemp(path.join(tmpdir(), 'efcpt-ui-cache-'));
-    const error = await locateEngine({ efVersion: 9, env: {}, cacheRoot, searchPath: false }).catch(
-      (e: unknown) => e,
-    );
+    const error = await locateEngine({
+      efVersion: 9,
+      env: {},
+      cacheRoot,
+      repoRoot: false,
+      searchPath: false,
+    }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(EngineNotFoundError);
     expect((error as Error).message).toContain('src/Core/efcpt.9/efcpt.9.csproj');
+  });
+
+  it('finds an engine built in a checkout of the repository, preferring Release builds', async () => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), 'efcpt-ui-repo-'));
+    const cacheRoot = await mkdtemp(path.join(tmpdir(), 'efcpt-ui-cache-'));
+    const common = { efVersion: 8 as const, env: {}, cacheRoot, repoRoot, searchPath: false };
+    const project = path.join(repoRoot, 'src/Core/efcpt.8/efcpt.8.csproj');
+    await mkdir(path.dirname(project), { recursive: true });
+    await writeFile(project, '');
+
+    // Not built yet: says how to build it in this checkout
+    const error = await locateEngine(common).catch((e: unknown) => e);
+    expect((error as Error).message).toContain(`dotnet build "${project}" -c Release`);
+
+    const build = (configuration: string) =>
+      path.join(repoRoot, 'src/Core/efcpt.8/bin', configuration, 'net8.0/efcpt.8.dll');
+    for (const configuration of ['Debug', 'Release']) {
+      await mkdir(path.dirname(build(configuration)), { recursive: true });
+      await writeFile(build(configuration), '');
+    }
+    const engine = await locateEngine(common);
+    expect(engine.prefixArgs).toEqual([build('Release')]);
+    expect(engine.description).toMatch(/^built in this checkout/);
   });
 
   it('reads the EF Core version an engine was built for', async () => {

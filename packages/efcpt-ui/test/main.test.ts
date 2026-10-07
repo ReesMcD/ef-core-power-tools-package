@@ -1,4 +1,4 @@
-import { cp, mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { access, cp, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,7 +23,12 @@ async function copySample(): Promise<string> {
 
 // Isolated environment: no real engine on PATH, empty download cache
 async function env(extra: Record<string, string> = {}): Promise<NodeJS.ProcessEnv> {
-  return { EFCPT_UI_CACHE: await mkdtemp(path.join(tmpdir(), 'efcpt-ui-cache-')), PATH: '', ...extra };
+  return {
+    EFCPT_UI_CACHE: await mkdtemp(path.join(tmpdir(), 'efcpt-ui-cache-')),
+    EFCPT_UI_SKIP_CHECKOUT_ENGINE: '1',
+    PATH: '',
+    ...extra,
+  };
 }
 
 afterEach(() => {
@@ -126,5 +131,45 @@ describe('efcpt-ui main', () => {
       path.join(dir, 'nested'),
     );
     expect(code).toBe(0);
+  });
+  it('works in a project without a config: --list reads, --generate creates one named after the project', async () => {
+    const dir = await copySample();
+    await rm(path.join(dir, 'efcpt-config.json'));
+    const configPath = path.join(dir, 'efcpt-config.json');
+    const args = ['--engine', fakeEngine, '--connection', 'Data Source=data/shop.db'];
+
+    const list = capture();
+    expect(await main(['--list', ...args], await env(), list, dir)).toBe(0);
+    // Without a config every object is generated
+    expect(list.stdout).toContain('  [x] Customers  (Id*, Name)');
+    // provider from the Microsoft.EntityFrameworkCore.Sqlite reference
+    expect(list.stderr.join('\n')).toContain('provider sqlite');
+    await expect(access(configPath)).rejects.toThrow();
+
+    const generate = capture();
+    expect(await main(['--generate', ...args], await env(), generate, dir)).toBe(0);
+    expect(generate.stderr).toContain(`Created ${configPath}`);
+    const created = JSON.parse(await readFile(configPath, 'utf8'));
+    expect(created.names).toEqual({ 'dbcontext-name': 'ShopContext', 'root-namespace': 'Sample.Shop' });
+  });
+
+  it('adds a missing root namespace before generating, so the code does not get `namespace .Models;`', async () => {
+    const dir = await copySample();
+    const configPath = path.join(dir, 'efcpt-config.json');
+    await writeFile(configPath, '{\n  "efcpt-ui": { "connection": { "env": "SAMPLE_SHOP_DB" } }\n}\n');
+    const io = capture();
+    const code = await main(
+      ['--generate', '--engine', fakeEngine],
+      await env({ SAMPLE_SHOP_DB: 'Data Source=x.db' }),
+      io,
+      dir,
+    );
+    expect(code).toBe(0);
+    expect(io.stderr).toContain(
+      'Added names.root-namespace "Sample.Shop" and names.dbcontext-name "XContext" to efcpt-config.json',
+    );
+    const saved = JSON.parse(await readFile(configPath, 'utf8'));
+    expect(saved['efcpt-ui']).toEqual({ connection: { env: 'SAMPLE_SHOP_DB' } });
+    expect(saved.names['root-namespace']).toBe('Sample.Shop');
   });
 });

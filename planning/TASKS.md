@@ -14,7 +14,7 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 - [x] **F2** GitHub Actions enabled on the fork and green: `cli-tool.yml` (engine tests + efcpt 8/9/10 + JSON smoke test), `vsix.yml` (VS extension build; file-count check updated to 113). Upstream publish/signing steps are skipped on the fork
 - [x] **F3** Create the `packages/efcpt-ui/` workspace: TypeScript 6.0 (typescript-eslint doesn't support 7 yet), ESLint, Prettier, Vitest, `bin` entry, `npm pack` smoke test
 - [x] **F4** TS types generated from `samples/efcpt-config.schema.json` (`npm run sync-schema`; committed, CI fails if stale via `npm run check-schema`)
-- [~] **F5** Test fixtures: a sample .NET 10 project + SQLite DB (checked in) + a SQL Server docker compose (reuse `test/ScaffoldingTester` Northwind/Chinook scripts)
+- [x] **F5** Test fixtures: a sample .NET 10 project + SQLite DB (checked in), a SQL Server schema script (`packages/efcpt-ui/test/fixtures/mssql/tricky.sql`) run in a CI service container
   - Done: `packages/efcpt-ui/test/fixtures/sample-project` (net10.0, EF Core SQLite 10.0.12, `shop.db`). Still to do: SQL Server fixture
 - [x] **F6** Measure engine publish size for each EF version to settle AD-4. Result: 243 MB gzipped for all three, 42 MB for a trimmed single engine, so the plan is download on first use (see PLAN AD-4, ENGINE_INTERFACE.md)
 - [x] **F8** Fork identity for the engine CLI: our own `PackageId` / `RepositoryUrl` / authors in `efcpt.8/9/10.csproj` (keep MIT attribution to ErikEJ). Disable or repoint `PackageService.CheckForPackageUpdateAsync`, which currently tells users to update to the official `ErikEJ.EFCorePowerTools.Cli`. Don't reuse the `efcpt` command name if it would clash with a globally installed official tool
@@ -77,8 +77,8 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 
 ### Differences from the Visual Studio extension (W10)
 
-- **Config format:** the UI edits `efcpt-config.json` (the CLI format), not the extension's `efpt.config.json`. An importer is X2.
-- **Options not in `efcpt-config.json`** (so not in the UI): Handlebars templates, "no default constructor", "no object filter" and "install NuGet packages". `IncludeConnectionString` is `enable-on-configuring`.
+- **Config format:** the UI edits `efcpt-config.json` (the CLI format), not the extension's `efpt.config.json`. `--import-vs` and the UI convert one (X2).
+- **Options not in `efcpt-config.json`** (so not in the UI): Handlebars templates, "no default constructor" and "install NuGet packages". "No object filter" imports as `refresh-object-lists`. `IncludeConnectionString` is `enable-on-configuring`.
 - **Renaming** tables and columns (`efpt.renaming.json`) is X1. The engine already applies an existing renaming file.
 - **Search** is plain text; the extension also has a regex mode.
 - **Connections** come from the config's `efcpt-ui` section, environment, user secrets or appsettings rather than Server Explorer, and are never stored by the UI.
@@ -87,6 +87,9 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 
 - [ ] **R1** Playwright end-to-end test: open the UI against the SQLite fixture, pick 3 tables, generate, `dotnet build` the sample project
 - [ ] **R2** Check the config written by the UI gives identical output through the stock `efcpt -i`
+- [x] **R7** Pre-test hardening against real databases (SQL Server 2022 in Docker with EF 8 and 10, PostgreSQL 16, 1,500 tables): fixed the provider not being inferred (Postgres vs Firebird), `namespace .Models;` when a config has no root namespace, `--list` refusing to run without a config, crashes on EPIPE; engines built in a checkout are found automatically
+- [x] **R9** SQL Server focus: EF 8/9/10 against a schema with triggers, sequences, spatial/hierarchyid, XML, sql_variant, filtered indexes, keyless tables, same-named tables across schemas, C# keyword names, temp-table/dynamic-SQL/multi-result/TVP procedures and functions; `.dacpac` (sqlpackage extract and AdventureWorks2014); appsettings and user-secrets connections. Fixed a nullable warning in the generated TVP helper (broke `TreatWarningsAsErrors` builds, also in the VS extension); added plain-language hints for certificate, Windows auth, login, database and server errors. CI runs this against a SQL Server 2022 service container
+- [x] **R8** Parity with the VS extension: an imported `efpt.config.json` generates byte-identical code to the extension's generator (`efreveng100`); checked in CI on SQLite, and by hand on SQL Server with two option sets
 - [ ] **R3** Security pass on the local server (token, CORS/Origin, path traversal on config paths, secret redaction)
 - [ ] **R4** Package README: install, quick start, multi-config `package.json` scripts, connection options, troubleshooting
 - [ ] **R5** Release workflow: publish trimmed engines (EF 8/9/10 × win-x64, win-arm64, osx-arm64, osx-x64, linux-x64, linux-arm64) as GitHub Release assets with checksums → `npm publish --provenance`. Versioning scheme documented
@@ -95,7 +98,7 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 ## Phase 5: Stretch (unordered)
 
 - [ ] **X1** Rename UI for tables and columns → `efpt.renaming.json` (passed with `-r`)
-- [ ] **X2** Importer: VS `efpt.config.json` → `efcpt-config.json`
+- [x] **X2** Importer: VS `efpt.config.json` → `efcpt-config.json` (`--import-vs`, and in the UI's config picker)
 - [ ] **X3** Diff preview of generated files before writing (generate into a temp folder, then diff)
 - [ ] **X4** Mermaid ER diagram preview (`generate-mermaid-diagram`)
 - [ ] **X5** Build `.sqlproj` / MSBuild.Sdk.SqlProj with `dotnet build` and use the resulting `.dacpac`

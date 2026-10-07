@@ -171,6 +171,8 @@ pre {
 .warning,
 .warnings li {
   color: var(--warning);
+  /* engine warnings can carry a list of suggestions on separate lines */
+  white-space: pre-wrap;
 }
 
 .warnings {

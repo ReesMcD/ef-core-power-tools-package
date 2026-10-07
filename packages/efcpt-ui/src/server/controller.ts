@@ -1,9 +1,11 @@
 import { access, mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import type { CliArgs } from '../args.js';
-import { generateRequest, generateTimeoutMs } from '../commands/generate.js';
+import { UsageError, type CliArgs } from '../args.js';
+import { generateRequest, generateTimeoutMs, prepareConfig } from '../commands/generate.js';
 import { prepareEngine, type Output } from '../commands/common.js';
 import { findConfigFiles } from '../config/discovery.js';
+import { efcptPathFor, findVsConfigFiles } from '../config/vs-import.js';
+import { importVs } from '../commands/import-vs.js';
 import {
   ConfigError,
   defaultFormat,
@@ -110,6 +112,7 @@ export class UiController {
       isDacpac: value.trim().toLowerCase().endsWith('.dacpac'),
     };
     if (this.connectionOverride.provider) this.session.provider = this.connectionOverride.provider;
+    else if (this.session.connection.isDacpac) this.session.provider = 'mssql';
   }
 
   private requireSession(): Session {
@@ -131,10 +134,15 @@ export class UiController {
       const relative = path.relative(this.rootDir, session.configPath);
       if (!configs.includes(relative) && !relative.startsWith('..')) configs.push(relative);
     }
+    const vsConfigs: string[] = [];
+    for (const file of await findVsConfigFiles(this.rootDir)) {
+      if (!(await exists(efcptPathFor(file)))) vsConfigs.push(path.relative(this.rootDir, file));
+    }
     return {
       configPath: session?.configPath,
       configExists: Boolean(session?.config),
       configs: configs.sort(),
+      vsConfigs,
       project: session && {
         path: session.project.projectPath,
         name: path.basename(session.project.projectPath, path.extname(session.project.projectPath)),
@@ -149,6 +157,27 @@ export class UiController {
       provider: session?.provider,
       warnings: (session?.warnings ?? []).map((w) => redact(w, this.secrets())),
     };
+  }
+
+  /** Creates an efcpt config from one of the project's Visual Studio extension configs and switches to it. */
+  async importVs(vsConfigPath: string): Promise<void> {
+    const full = path.resolve(this.rootDir, vsConfigPath);
+    if (!(await findVsConfigFiles(this.rootDir)).includes(full)) {
+      throw new RequestError(`${vsConfigPath} is not a Visual Studio extension config in this project`, 404);
+    }
+    let imported;
+    try {
+      imported = await importVs(full, {
+        projectPath: this.options.args.project
+          ? path.resolve(this.options.cwd, this.options.args.project)
+          : undefined,
+      });
+    } catch (error) {
+      if (error instanceof UsageError) throw new RequestError(error.message, 409);
+      throw error;
+    }
+    await this.load(imported.target);
+    this.session!.warnings.push(...imported.warnings);
   }
 
   /** Switches to another config. A path that doesn't exist yet gets a new config from the template. */
@@ -273,6 +302,7 @@ export class UiController {
 
     this.busy = true;
     try {
+      for (const change of await prepareConfig(session, connection)) onLog(change);
       const result = await generate(await this.engine(session), generateRequest(session, connection), {
         timeoutMs: generateTimeoutMs,
         onLog,

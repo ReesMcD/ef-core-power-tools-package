@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -12,6 +12,7 @@ import { startUiServer, type UiServer } from '../src/server/server.js';
 
 const fakeEngine = fileURLToPath(new URL('./fixtures/fake-engine.mjs', import.meta.url));
 const sampleProject = fileURLToPath(new URL('./fixtures/sample-project', import.meta.url));
+const vsFixture = fileURLToPath(new URL('./fixtures/vs-config/efpt.config.json', import.meta.url));
 const quiet: Output = { out: () => {}, err: () => {} };
 const servers: UiServer[] = [];
 
@@ -206,5 +207,28 @@ describe('UI server API', () => {
     // the new config reads the connection the same way as the one it was created from
     expect(created['efcpt-ui']).toEqual({ provider: 'sqlite', connection: { env: 'SAMPLE_SHOP_DB' } });
     expect((await controller.info()).configs).toContain(path.join('Data', 'Sales', 'efcpt-config.json'));
+  });
+
+  it('offers and imports Visual Studio extension configs, only from the project', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'efcpt-ui-server-'));
+    await cp(sampleProject, dir, { recursive: true });
+    await rm(path.join(dir, 'efcpt-config.json'));
+    await cp(vsFixture, path.join(dir, 'efpt.config.json'));
+
+    const controller = new UiController({
+      args: parseCliArgs(['--engine', fakeEngine]),
+      env: {},
+      cwd: dir,
+      io: quiet,
+    });
+    await controller.init();
+    expect((await controller.info()).vsConfigs).toEqual(['efpt.config.json']);
+
+    await expect(controller.importVs('../elsewhere/efpt.config.json')).rejects.toThrow(/not a Visual Studio/);
+    await controller.importVs('efpt.config.json');
+    const info = await controller.info();
+    expect(info.configPath).toBe(path.join(dir, 'efcpt-config.json'));
+    expect(info.vsConfigs).toEqual([]); // imported: no longer offered
+    expect((await controller.getConfig()).config.names?.['dbcontext-name']).toBe('ShopDbContext');
   });
 });

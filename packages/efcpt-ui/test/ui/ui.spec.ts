@@ -1,5 +1,5 @@
 // Browser tests of the built web UI (dist/web, run `npm run build` first) against the fake engine.
-import { cp, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +12,7 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const fakeEngine = path.join(root, 'test/fixtures/fake-engine.mjs');
 const sampleProject = path.join(root, 'test/fixtures/sample-project');
 const webRoot = path.join(root, 'dist/web');
+const vsFixture = path.join(root, 'test/fixtures/vs-config/efpt.config.json');
 
 let server: UiServer | undefined;
 
@@ -156,6 +157,33 @@ test('lets you pick one of several configs, or create a new one', async ({ page 
   const created = JSON.parse(await readFile(path.join(ui.dir, 'Data/Sales/efcpt-config.json'), 'utf8'));
   // billing.efcpt.json has no connection, so the DbContext is named after the project
   expect(created.names).toEqual({ 'dbcontext-name': 'SampleContext', 'root-namespace': 'Sample.Shop' });
+});
+
+test('imports a Visual Studio extension config', async ({ page }) => {
+  const ui = await startUi({
+    setup: async (dir) => {
+      await rm(path.join(dir, 'efcpt-config.json'));
+      // The VS config selects Customers and Orders, but not the BigOrders view
+      const vs = JSON.parse((await readFile(vsFixture, 'utf8')).replace(/^\uFEFF/, ''));
+      vs.Tables = vs.Tables.filter((t: { Name: string }) => t.Name !== 'BigOrders');
+      await writeFile(path.join(dir, 'efpt.config.json'), JSON.stringify(vs));
+    },
+  });
+  await page.goto(ui.url);
+
+  await expect(page.getByRole('heading', { name: 'Choose a config' })).toBeVisible();
+  await page.getByRole('button', { name: 'Import efpt.config.json' }).click();
+  await expect(page.getByLabel('Config file')).toHaveValue('efcpt-config.json');
+
+  // The VS config has no connection
+  await expect(page.getByRole('heading', { name: 'Database connection' })).toBeVisible();
+  await page.getByLabel('Connection string, or path to a .dacpac').fill('Data Source=shop.db');
+  await page.getByRole('button', { name: 'Connect' }).click();
+
+  // As in Visual Studio, only the listed objects are generated
+  await expect(page.getByRole('checkbox', { name: 'Customers', exact: true })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'BigOrders', exact: true })).not.toBeChecked();
+  expect((await ui.config()).names['dbcontext-name']).toBe('ShopDbContext');
 });
 
 test('refuses access without the token', async ({ page }) => {

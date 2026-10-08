@@ -143,3 +143,28 @@ describe('providerFromPackages', () => {
     ).toBeUndefined();
   });
 });
+
+describe('UserSecretsId', () => {
+  it('comes from the project, or from a Directory.Build.props above it', async () => {
+    const root = await tempDir();
+    await writeFile(
+      path.join(root, 'Directory.Build.props'),
+      '<Project><PropertyGroup><UserSecretsId>shared-id</UserSecretsId></PropertyGroup></Project>',
+    );
+    await mkdir(path.join(root, 'src', 'Data'), { recursive: true });
+    const data = path.join(root, 'src', 'Data', 'Data.csproj');
+    await writeFile(
+      data,
+      csproj('<PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>'),
+    );
+    expect((await readProject(data)).userSecretsId).toBe('shared-id');
+
+    await writeFile(
+      data,
+      csproj(
+        '<PropertyGroup><TargetFramework>net10.0</TargetFramework><UserSecretsId>own</UserSecretsId></PropertyGroup>',
+      ),
+    );
+    expect((await readProject(data)).userSecretsId).toBe('own');
+  });
+});

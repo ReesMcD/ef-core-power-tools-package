@@ -4,7 +4,9 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   ConnectionError,
+  connectionStringKeys,
   lookupKey,
+  SeveralConnectionsError,
   resolveConnection,
   stripJsonComments,
   type ConnectionOptions,
@@ -145,5 +147,76 @@ describe('helpers', () => {
       windowsUsersRoot: usersRoot,
     });
     expect(resolved?.value).toBe('Server=sql01;User Id=app;Password=x');
+  });
+
+  describe("the project's own user secrets", () => {
+    async function secrets(content: object): Promise<string> {
+      const root = await mkdtemp(path.join(tmpdir(), 'efcpt-ui-secrets-'));
+      await mkdir(path.join(root, 'app-1'), { recursive: true });
+      await writeFile(path.join(root, 'app-1', 'secrets.json'), JSON.stringify(content));
+      return root;
+    }
+    const options = (root: string): ConnectionOptions => ({
+      ...base,
+      userSecretsId: 'app-1',
+      userSecretsRoot: root,
+      windowsUsersRoot: false,
+    });
+
+    it('lists connection strings written flat (dotnet user-secrets) or nested', () => {
+      expect(
+        connectionStringKeys({
+          'ConnectionStrings:Sales': 'a',
+          ConnectionStrings: { Audit: 'b', Empty: '' },
+          'Logging:Level': 'x',
+        }),
+      ).toEqual(['ConnectionStrings:Sales', 'ConnectionStrings:Audit']);
+    });
+
+    it('uses the only connection string when nothing is configured', async () => {
+      const root = await secrets({ 'ConnectionStrings:Sales': 'Server=sql01;User Id=app;Password=x' });
+      const resolved = await resolveConnection(options(root));
+      expect(resolved?.value).toBe('Server=sql01;User Id=app;Password=x');
+      expect(resolved?.source).toBe(
+        "user secret ConnectionStrings:Sales (found in the project's user secrets)",
+      );
+    });
+
+    it('asks to choose when there are several', async () => {
+      const root = await secrets({ ConnectionStrings: { Sales: 'a', Audit: 'b' } });
+      const error = await resolveConnection(options(root)).catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(SeveralConnectionsError);
+      expect((error as SeveralConnectionsError).keys).toEqual([
+        'ConnectionStrings:Sales',
+        'ConnectionStrings:Audit',
+      ]);
+      expect((error as Error).message).toContain('"user-secrets": "ConnectionStrings:Sales"');
+    });
+
+    it("reads another project's user secrets, for example the startup project", async () => {
+      const root = await secrets({ 'ConnectionStrings:Sales': 'from the api project' });
+      const solution = await mkdtemp(path.join(tmpdir(), 'efcpt-ui-solution-'));
+      await mkdir(path.join(solution, 'Api'));
+      await writeFile(
+        path.join(solution, 'Api', 'Api.csproj'),
+        '<Project Sdk="Microsoft.NET.Sdk.Web"><PropertyGroup><TargetFramework>net10.0</TargetFramework><UserSecretsId>app-1</UserSecretsId></PropertyGroup></Project>',
+      );
+      const reference = { 'user-secrets': 'ConnectionStrings:Sales', project: '../Api/Api.csproj' };
+      const resolved = await resolveConnection({
+        ...options(root),
+        userSecretsId: undefined, // the data project has none
+        projectDir: path.join(solution, 'Data'),
+        config: { 'efcpt-ui': { connection: reference } },
+      });
+      expect(resolved?.value).toBe('from the api project');
+
+      // or by id
+      const byId = await resolveConnection({
+        ...options(root),
+        userSecretsId: undefined,
+        config: { 'efcpt-ui': { connection: { 'user-secrets': 'ConnectionStrings:Sales', id: 'app-1' } } },
+      });
+      expect(byId?.value).toBe('from the api project');
+    });
   });
 });

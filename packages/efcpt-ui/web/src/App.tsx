@@ -88,6 +88,19 @@ export function App() {
     }
   };
 
+  const useUserSecret = async (key: string) => {
+    setBusy(true);
+    setError(undefined);
+    try {
+      await loadSession(await api.useUserSecret(key));
+      setEditConnection(false);
+    } catch (e) {
+      setError(describe(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const importVs = async (path: string) => {
     if (dirty && !window.confirm('Discard unsaved changes?')) return;
     setBusy(true);
@@ -248,6 +261,7 @@ export function App() {
             busy={busy}
             error={error}
             onConnect={(c, p) => void connect(c, p)}
+            onUseSecret={(key) => void useUserSecret(key)}
             onCancel={session.connection ? () => setEditConnection(false) : undefined}
           />
         ) : (

@@ -131,6 +131,25 @@ export function majorOf(version: string | undefined): number | undefined {
   return match ? Number(match[1]) : undefined;
 }
 
+/**
+ * A property set in the nearest Directory.Build.props at or above the project folder, which MSBuild imports
+ * into every project below it (for example a UserSecretsId shared by a solution).
+ */
+async function readDirectoryBuildProperty(projectDir: string, name: string): Promise<string | undefined> {
+  let dir = projectDir;
+  for (;;) {
+    const file = path.join(dir, 'Directory.Build.props');
+    const text = await readFile(file, 'utf8').catch(() => undefined);
+    if (text !== undefined) {
+      const properties = collectProperties(await parseMsBuild(file));
+      return properties.has(name) ? expand(properties.get(name)!, properties) || undefined : undefined;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) return undefined;
+    dir = parent;
+  }
+}
+
 /** Walks up from the project folder to find Directory.Packages.props (central package management). */
 async function readCentralVersions(projectDir: string): Promise<Map<string, string>> {
   const versions = new Map<string, string>();
@@ -235,7 +254,9 @@ export async function readProject(projectPath: string): Promise<ProjectInfo> {
   }
 
   const provider = providerFromPackages(references.map((r) => r['@Include'] ?? '').filter(Boolean));
-  const userSecretsId = expand(properties.get('UserSecretsId') ?? '', properties) || undefined;
+  const userSecretsId =
+    expand(properties.get('UserSecretsId') ?? '', properties) ||
+    (await readDirectoryBuildProperty(projectDir, 'UserSecretsId'));
 
   return {
     projectPath: resolved,

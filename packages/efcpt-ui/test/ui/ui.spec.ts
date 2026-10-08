@@ -1,5 +1,5 @@
 // Browser tests of the built web UI (dist/web, run `npm run build` first) against the fake engine.
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,14 +22,18 @@ test.afterEach(async () => {
 });
 
 async function startUi(
-  options: { env?: Record<string, string>; setup?: (dir: string) => Promise<void> } = {},
+  options: {
+    env?: Record<string, string>;
+    setup?: (dir: string) => Promise<void>;
+    envFromSetup?: () => Record<string, string>;
+  } = {},
 ) {
   const dir = await mkdtemp(path.join(tmpdir(), 'efcpt-ui-browser-'));
   await cp(sampleProject, dir, { recursive: true });
   await options.setup?.(dir);
   const controller = new UiController({
     args: parseCliArgs(['--engine', fakeEngine]),
-    env: options.env ?? { SAMPLE_SHOP_DB: 'Data Source=shop.db' },
+    env: options.envFromSetup?.() ?? options.env ?? { SAMPLE_SHOP_DB: 'Data Source=shop.db' },
     cwd: dir,
     io: { out: () => {}, err: () => {} },
   });
@@ -38,6 +42,36 @@ async function startUi(
   const config = async () =>
     JSON.parse((await readFile(path.join(dir, 'efcpt-config.json'), 'utf8')).replace(/^\uFEFF/, ''));
   return { url: server.launchUrl, dir, config };
+}
+
+/** A project with two connection strings in its user secrets (where dotnet keeps them: $HOME or %APPDATA%). */
+async function withUserSecrets(dir: string): Promise<Record<string, string>> {
+  const home = await mkdtemp(path.join(tmpdir(), 'efcpt-ui-home-'));
+  const secrets =
+    process.platform === 'win32'
+      ? path.join(home, 'Microsoft', 'UserSecrets', 'sample-secrets')
+      : path.join(home, '.microsoft', 'usersecrets', 'sample-secrets');
+  await mkdir(secrets, { recursive: true });
+  await writeFile(
+    path.join(secrets, 'secrets.json'),
+    JSON.stringify({
+      'ConnectionStrings:Shop': 'Data Source=shop.db',
+      'ConnectionStrings:Audit': 'Data Source=audit.db',
+    }),
+  );
+  const csproj = path.join(dir, 'Sample.csproj');
+  await writeFile(
+    csproj,
+    (await readFile(csproj, 'utf8')).replace(
+      '</RootNamespace>',
+      '</RootNamespace>\n    <UserSecretsId>sample-secrets</UserSecretsId>',
+    ),
+  );
+  // nothing configured: efcpt-ui should find the user secrets by itself
+  const config = JSON.parse(await readFile(path.join(dir, 'efcpt-config.json'), 'utf8'));
+  delete config['efcpt-ui'];
+  await writeFile(path.join(dir, 'efcpt-config.json'), JSON.stringify(config, null, 2));
+  return process.platform === 'win32' ? { APPDATA: home } : { HOME: home };
 }
 
 test('shows the project and database objects, and saves selection changes', async ({ page }) => {
@@ -184,6 +218,26 @@ test('imports a Visual Studio extension config', async ({ page }) => {
   await expect(page.getByRole('checkbox', { name: 'Customers', exact: true })).toBeChecked();
   await expect(page.getByRole('checkbox', { name: 'BigOrders', exact: true })).not.toBeChecked();
   expect((await ui.config()).names['dbcontext-name']).toBe('ShopDbContext');
+});
+
+test("uses a connection string from the project's user secrets, and saves the choice", async ({ page }) => {
+  let env: Record<string, string> = {};
+  const ui = await startUi({
+    env: {},
+    setup: async (dir) => {
+      env = await withUserSecrets(dir);
+    },
+    envFromSetup: () => env,
+  });
+  await page.goto(ui.url);
+
+  await expect(page.getByRole('heading', { name: 'Database connection' })).toBeVisible();
+  await page.getByRole('button', { name: 'Use ConnectionStrings:Shop' }).click();
+  await expect(page.getByRole('checkbox', { name: 'Customers', exact: true })).toBeVisible();
+  await expect(page.getByText('user secret ConnectionStrings:Shop')).toBeVisible();
+  expect((await ui.config())['efcpt-ui']).toEqual({
+    connection: { 'user-secrets': 'ConnectionStrings:Shop' },
+  });
 });
 
 test('refuses access without the token', async ({ page }) => {

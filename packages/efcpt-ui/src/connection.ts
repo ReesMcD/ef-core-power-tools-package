@@ -3,6 +3,7 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import type { EfcptConfig } from './config/io.js';
 import { isWsl } from './platform.js';
+import { readProject } from './project.js';
 
 /** Optional `efcpt-ui` section in efcpt-config.json. efcpt keeps unknown top-level sections when it rewrites the file. */
 export interface UiConfigSection {
@@ -14,7 +15,16 @@ export interface UiConfigSection {
 
 /** Where to read the connection from. Never a plain connection string, so secrets stay out of the config file. */
 export type ConnectionReference =
-  { env: string } | { 'user-secrets': string } | { appsettings: string; key: string } | { dacpac: string };
+  | { env: string }
+  | {
+      'user-secrets': string;
+      /** Another project whose user secrets hold it (relative to this project), for example the startup project. */
+      project?: string;
+      /** The UserSecretsId to read, when it isn't this project's. */
+      id?: string;
+    }
+  | { appsettings: string; key: string }
+  | { dacpac: string };
 
 export interface ResolvedConnection {
   /** Connection string, or the full path of a .dacpac file. */
@@ -122,7 +132,8 @@ export function userSecretsFile(id: string, env: NodeJS.ProcessEnv, root?: strin
       'secrets.json',
     );
   }
-  return path.join(homedir(), '.microsoft', 'usersecrets', id, 'secrets.json');
+  // Like dotnet: %APPDATA% on Windows, $HOME elsewhere
+  return path.join(env['HOME'] || homedir(), '.microsoft', 'usersecrets', id, 'secrets.json');
 }
 
 /**
@@ -153,6 +164,63 @@ export async function windowsUserSecretsFiles(id: string, usersRoot = '/mnt/c/Us
   return found;
 }
 
+/** Reads a project's user secrets, from the Linux/macOS or Windows location, or from Windows' side in WSL. */
+async function readUserSecrets(
+  id: string,
+  options: ConnectionOptions,
+): Promise<{ file: string; data: unknown }> {
+  let file = userSecretsFile(id, options.env, options.userSecretsRoot);
+  const windowsUsersRoot = options.windowsUsersRoot ?? (isWsl() ? '/mnt/c/Users' : false);
+  if (windowsUsersRoot && !(await exists(file))) {
+    file = (await windowsUserSecretsFiles(id, windowsUsersRoot))[0] ?? file;
+  }
+  return { file, data: await readJsonFile(file, 'user secrets') };
+}
+
+async function exists(file: string): Promise<boolean> {
+  return access(file).then(
+    () => true,
+    () => false,
+  );
+}
+
+/** The ConnectionStrings:* keys in user secrets, whether written flat (dotnet user-secrets) or nested. */
+export function connectionStringKeys(data: unknown): string[] {
+  if (typeof data !== 'object' || data === null) return [];
+  const keys: string[] = [];
+  for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+    if (/^ConnectionStrings:./i.test(key) && typeof value === 'string' && value.trim()) keys.push(key);
+    if (key.toLowerCase() === 'connectionstrings' && typeof value === 'object' && value !== null) {
+      for (const [name, nested] of Object.entries(value as Record<string, unknown>)) {
+        if (typeof nested === 'string' && nested.trim()) keys.push(`ConnectionStrings:${name}`);
+      }
+    }
+  }
+  return [...new Set(keys)];
+}
+
+/**
+ * The connection strings in this project's user secrets, which is where the app itself reads them from in
+ * development. Missing or unreadable secrets give an empty list.
+ */
+export async function userSecretConnectionKeys(options: ConnectionOptions): Promise<string[]> {
+  if (!options.userSecretsId) return [];
+  try {
+    return connectionStringKeys((await readUserSecrets(options.userSecretsId, options)).data);
+  } catch {
+    return [];
+  }
+}
+
+export class SeveralConnectionsError extends ConnectionError {
+  constructor(readonly keys: string[]) {
+    super(
+      `The project's user secrets have several connection strings (${keys.join(', ')}). Choose one in ` +
+        `efcpt-config.json:\n  "efcpt-ui": { "connection": { "user-secrets": "${keys[0]}" } }`,
+    );
+  }
+}
+
 async function fromReference(
   reference: ConnectionReference,
   options: ConnectionOptions,
@@ -168,23 +236,24 @@ async function fromReference(
 
   if ('user-secrets' in reference) {
     const key = reference['user-secrets'];
-    if (!options.userSecretsId) {
+    let id = reference.id ?? options.userSecretsId;
+    if (!reference.id && reference.project) {
+      const other = path.resolve(options.projectDir, reference.project);
+      const project = await readProject(other).catch((error: Error) => {
+        throw new ConnectionError(`efcpt-ui.connection.project: ${error.message}`);
+      });
+      id = project.userSecretsId;
+      if (!id) throw new ConnectionError(`${reference.project} has no UserSecretsId`);
+    }
+    if (!id) {
       throw new ConnectionError(
-        `efcpt-ui.connection uses user-secrets, but the project has no UserSecretsId (run: dotnet user-secrets init)`,
+        `efcpt-ui.connection uses user-secrets, but the project has no UserSecretsId. If another project ` +
+          `(for example the startup project) has the secrets, add "project": "../Other/Other.csproj"; ` +
+          `or run: dotnet user-secrets init`,
       );
     }
-    let file = userSecretsFile(options.userSecretsId, options.env, options.userSecretsRoot);
-    const windowsUsersRoot = options.windowsUsersRoot ?? (isWsl() ? '/mnt/c/Users' : false);
-    if (
-      windowsUsersRoot &&
-      !(await access(file).then(
-        () => true,
-        () => false,
-      ))
-    ) {
-      file = (await windowsUserSecretsFiles(options.userSecretsId, windowsUsersRoot))[0] ?? file;
-    }
-    const value = lookupKey(await readJsonFile(file, 'user secrets'), key);
+    const { data } = await readUserSecrets(id, options);
+    const value = lookupKey(data, key);
     if (!value)
       throw new ConnectionError(`User secret '${key}' not found (dotnet user-secrets set "${key}" "...")`);
     return result(value, `user secret ${key}`);
@@ -227,5 +296,14 @@ export async function resolveConnection(options: ConnectionOptions): Promise<Res
   if (fromEnv) return result(fromEnv, `environment variable ${connectionEnvVar}`);
 
   const reference = getUiSection(options.config).connection;
-  return reference ? fromReference(reference, options) : undefined;
+  if (reference) return fromReference(reference, options);
+
+  // Nothing configured: use the connection string the app itself reads in development, if it's unambiguous
+  const keys = await userSecretConnectionKeys(options);
+  if (keys.length === 1) {
+    const resolved = await fromReference({ 'user-secrets': keys[0]! }, options);
+    return { ...resolved, source: `${resolved.source} (found in the project's user secrets)` };
+  }
+  if (keys.length > 1) throw new SeveralConnectionsError(keys);
+  return undefined;
 }

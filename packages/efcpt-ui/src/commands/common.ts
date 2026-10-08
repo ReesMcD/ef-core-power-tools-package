@@ -28,7 +28,8 @@ export interface CommandContext {
 export function requireConnection(session: Session): ResolvedConnection {
   if (session.connection) return session.connection;
   throw new UsageError(
-    'No database connection. Pass --connection "<connection string>", set EFCPT_CONNECTION, or add to ' +
+    'No database connection. Pass --connection "<connection string>", set EFCPT_CONNECTION, keep it in the ' +
+      'project\'s user secrets (dotnet user-secrets set "ConnectionStrings:MyDb" "..."), or add to ' +
       `${path.basename(session.configPath)}:\n  "efcpt-ui": { "connection": { "env": "MY_DB_CONNECTION" } }`,
   );
 }

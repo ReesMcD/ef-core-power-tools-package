@@ -4,46 +4,130 @@ Reverse engineer a database into EF Core `DbContext` and entity classes from any
 
 This is a fork of [EF Core Power Tools](https://github.com/ErikEJ/EFCorePowerTools) by ErikEJ (MIT). It is not the official tool.
 
-> **Status: early.** The web UI, `--generate` and `--list` work, tested against SQL Server, PostgreSQL and SQLite. It is not on npm yet and engine downloads are not available yet: [try it from a checkout](#try-it-from-a-checkout).
+> **Status: early.** The web UI, `--generate` and `--list` work, tested against SQL Server (including Windows authentication), PostgreSQL and SQLite. It is not on npm yet and engine downloads are not available yet, so you install it from this repository (below).
 
-## Try it from a checkout
+## Getting started
 
-Needs the .NET 10 SDK (plus the .NET 8 runtime for EF Core 8 or 9 projects) and Node 22 or newer. It runs from PowerShell, cmd, WSL, macOS and Linux.
+Pick where you run it:
 
-**PowerShell or cmd**
+- **Windows (cmd)**: works with Windows authentication and SQL logins.
+- **WSL**: works with SQL logins (Windows authentication needs Windows, see below). The UI opens in your Windows browser.
 
-```powershell
+Each takes a few minutes the first time. Try it on a branch or a copy of your project: generating overwrites the output folder and removes files it generated before that are no longer needed (`soft-delete-obsolete-files`).
+
+### Windows (cmd)
+
+**1. Prerequisites** (once): the .NET 10 SDK, the .NET 8 runtime (only for EF Core 8 or 9 projects), Node 22 or newer and git.
+
+```cmd
+winget install Microsoft.DotNet.SDK.10
+winget install Microsoft.DotNet.Runtime.8
+winget install OpenJS.NodeJS.LTS
+winget install Git.Git
+```
+
+Open a new cmd window afterwards so the new programs are on your PATH.
+
+**2. Install efcpt-ui** (once):
+
+```cmd
 git clone https://github.com/ReesMcD/ef-core-power-tools-package.git
 cd ef-core-power-tools-package
-dotnet build src\Core\efcpt.10\efcpt.10.csproj -c Release   # the engine for your EF Core version: efcpt.8, efcpt.9 or efcpt.10
+dotnet build src\Core\efcpt.10\efcpt.10.csproj -c Release
 cd packages\efcpt-ui
 npm ci
 npm run build
-npm link                                                    # puts efcpt-ui on your PATH
-
-cd <your .NET project>
-efcpt-ui                                                    # or: efcpt-ui --list
+npm link
+efcpt-ui --version
 ```
 
-Connection strings in an environment variable: `$env:MY_DB = "Server=...;Integrated Security=True;TrustServerCertificate=True"` in PowerShell, `set "MY_DB=Server=...;Integrated Security=True;TrustServerCertificate=True"` in cmd, then `efcpt-ui --connection-env MY_DB`.
+Build the engine that matches your project's EF Core version: `efcpt.8`, `efcpt.9` or `efcpt.10` (building several is fine; efcpt-ui picks the right one).
 
-If PowerShell says _running scripts is disabled on this system_, your execution policy blocks the `efcpt-ui.ps1` launcher that npm creates. Run `efcpt-ui.cmd` instead, which works under any policy, or allow local scripts with `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+**3. Connection string.** If your project keeps it in user secrets (`dotnet user-secrets`), there is nothing to do: efcpt-ui reads them like the app does (see [Connection strings](#connection-strings)). Otherwise put it in an environment variable for now:
 
-**WSL, macOS and Linux**
+```cmd
+set "MY_DB=Server=YOURSERVER;Database=YourDb;Integrated Security=True;TrustServerCertificate=True"
+```
 
-The same steps with `/` paths, and `export MY_DB="..."`. In WSL, efcpt-ui opens the UI in your Windows browser. A connection in the config's `efcpt-ui` section works there too: `appsettings` files are read from the project, and user secrets set with `dotnet user-secrets` on Windows are found. Windows environment variables are not visible in WSL unless you share them with `WSLENV`.
+**4. Run it in your project:**
 
-**Windows authentication** (`Integrated Security=True` / `Trusted_Connection=True`) needs efcpt-ui to run on Windows, from PowerShell or cmd. In WSL, efcpt-ui and the engine are Linux programs without your Windows login, so use WSL only with SQL logins. Keep one checkout per side: `npm ci` and `npm link` are per operating system.
+```cmd
+cd C:\path\to\YourProject
+git checkout -b try-efcpt-ui
+efcpt-ui --import-vs efpt.config.json
+efcpt-ui --list
+efcpt-ui
+```
 
-efcpt-ui finds the engine built in the checkout by itself. Try it on a branch or a copy of your project: generating overwrites the output folder and removes files it generated before that are no longer needed (`soft-delete-obsolete-files`).
+- `--import-vs` converts a Visual Studio extension config; skip it if you have none.
+- `--list` is read-only and shows what would be generated.
+- `efcpt-ui` opens the UI: pick tables and options, then **Save & Generate**.
+- Using the `MY_DB` variable instead of user secrets? Add `--connection-env MY_DB` to the last two commands.
 
-## Quick start
+**5. Update** later: `git pull` in `ef-core-power-tools-package`, run the `dotnet build` line again, then `npm run build` in `packages\efcpt-ui`.
+
+**PowerShell** works too: set variables with `$env:MY_DB = "..."`. If it says _running scripts is disabled on this system_, your execution policy blocks the `efcpt-ui.ps1` launcher that npm creates. Run `efcpt-ui.cmd` instead, or allow local scripts with `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+
+### WSL
+
+**1. Prerequisites** (once, in your WSL distribution): the .NET 10 SDK, the .NET 8 runtime (only for EF Core 8 or 9 projects) and Node 22 or newer. Ubuntu's own Node is too old, so install it with nvm:
 
 ```bash
-npm i -D efcpt-ui
+sudo apt update && sudo apt install -y dotnet-sdk-10.0 dotnet-runtime-8.0 git
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+source ~/.bashrc && nvm install 22
 ```
 
-In `package.json`, one script per config (a project can have several):
+If apt can't find `dotnet-sdk-10.0`, follow [Microsoft's .NET install guide](https://learn.microsoft.com/dotnet/core/install/linux) for your distribution.
+
+**2. Install efcpt-ui** (once):
+
+```bash
+git clone https://github.com/ReesMcD/ef-core-power-tools-package.git ~/ef-core-power-tools-package
+cd ~/ef-core-power-tools-package
+dotnet build src/Core/efcpt.10/efcpt.10.csproj -c Release
+cd packages/efcpt-ui
+npm ci
+npm run build
+npm link
+efcpt-ui --version
+```
+
+As on Windows, build `efcpt.8`, `efcpt.9` or `efcpt.10` to match your project.
+
+**3. Connection string.** Use a SQL login. If your project keeps the connection string in user secrets, there is nothing to do: efcpt-ui reads `~/.microsoft/usersecrets` like the app does, and also finds secrets you set on the Windows side. To add one:
+
+```bash
+cd /path/to/YourProject
+dotnet user-secrets init      # only if the project has no UserSecretsId yet
+dotnet user-secrets set "ConnectionStrings:Default" 'Server=YOURSERVER;Database=YourDb;User Id=youruser;Password=yourpassword;TrustServerCertificate=True'
+```
+
+If SQL Server runs on your own Windows machine, `localhost` inside WSL does not reach it by default. Turn on mirrored networking: add `[wsl2]` and `networkingMode=mirrored` on two lines to `C:\Users\<you>\.wslconfig` and run `wsl --shutdown`. SQL Server must also accept TCP connections and SQL logins.
+
+**4. Run it in your project:**
+
+```bash
+cd /path/to/YourProject       # a project on the C: drive is under /mnt/c/...
+git checkout -b try-efcpt-ui
+efcpt-ui --import-vs efpt.config.json
+efcpt-ui --list
+efcpt-ui
+```
+
+The same notes as on Windows apply to these commands. The UI opens in your Windows browser.
+
+**5. Update** later: `git pull` in `~/ef-core-power-tools-package`, run the `dotnet build` line again, then `npm run build` in `packages/efcpt-ui`.
+
+**Windows authentication** (`Integrated Security=True`) does not work from WSL: efcpt-ui and the engine are Linux programs there, without your Windows login. Use cmd for it. Keep one checkout per side, because `npm ci` and `npm link` are per operating system.
+
+### macOS and Linux
+
+Follow the WSL steps, installing .NET and Node the usual way for your system.
+
+## Using it in a project
+
+Run `efcpt-ui` from the project folder, or add one script per config to `package.json` if your project has one (a project can have several configs):
 
 ```json
 "scripts": {

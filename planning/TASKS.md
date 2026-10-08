@@ -91,9 +91,9 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 - [x] **R9** SQL Server focus: EF 8/9/10 against a schema with triggers, sequences, spatial/hierarchyid, XML, sql_variant, filtered indexes, keyless tables, same-named tables across schemas, C# keyword names, temp-table/dynamic-SQL/multi-result/TVP procedures and functions; `.dacpac` (sqlpackage extract and AdventureWorks2014); appsettings and user-secrets connections. Fixed a nullable warning in the generated TVP helper (broke `TreatWarningsAsErrors` builds, also in the VS extension); added plain-language hints for certificate, Windows auth, login, database and server errors. CI runs this against a SQL Server 2022 service container
 - [x] **R8** Parity with the VS extension: an imported `efpt.config.json` generates byte-identical code to the extension's generator (`efreveng100`); checked in CI on SQLite, and by hand on SQL Server with two option sets
 - [ ] **R3** Security pass on the local server (token, CORS/Origin, path traversal on config paths, secret redaction)
-- [ ] **R4** Package README: install, quick start, multi-config `package.json` scripts, connection options, troubleshooting
+- [x] **R4** Package README: getting started for Windows (cmd) and WSL, multi-config `package.json` scripts, connection options, troubleshooting
 - [ ] **R5** Release workflow: publish trimmed engines (EF 8/9/10 × win-x64, win-arm64, osx-arm64, osx-x64, linux-x64, linux-arm64) as GitHub Release assets with checksums → `npm publish --provenance`. Versioning scheme documented
-- [ ] **R6** Update the root `README.md` of the fork to describe the standalone tool and credit upstream
+- [x] **R6** Root `README.md` of the fork opens with the standalone tool and its cmd/WSL setup, above the upstream README
 
 ## Phase 5: Stretch (unordered)
 

@@ -149,6 +149,7 @@ This writes `efcpt-config.json` next to `efpt.config.json` (`efpt.Sales.config.j
 - As in Visual Studio, only the imported objects are generated and new database objects are not added (`refresh-object-lists` is off). Tick new ones in the UI.
 - `efpt.renaming.json` next to the config keeps working. A config specific `efpt.Sales.renaming.json` is carried over as `"efcpt-ui": { "renaming": "efpt.Sales.renaming.json" }`.
 - The connection string is not in `efpt.config.json`; see [Connection strings](#connection-strings).
+- Generated files keep the line endings of the code that is already there, so regenerating from WSL doesn't rewrite every file Visual Studio generated with Windows (CRLF) line endings. Only the files whose code changed show up in `git status`.
 - Handlebars templates and "no default constructor" are not supported outside Visual Studio. Stored procedure calls are always async. The import warns about these.
 
 ### The UI
@@ -203,7 +204,7 @@ Paths in this section are relative to the project folder. The engine keeps this 
 
 **User secrets** are read where `dotnet user-secrets` writes them: `~/.microsoft/usersecrets/<UserSecretsId>/secrets.json` on Linux, macOS and WSL (from `$HOME`), `%APPDATA%\Microsoft\UserSecrets\...` on Windows. In WSL, secrets set on the Windows side are found too. The UserSecretsId comes from the project or a `Directory.Build.props` above it. When the secrets belong to another project, such as the startup project of a solution whose models live in a class library, name it with `"project"` (or give its `"id"`).
 
-The section can also name the renaming file, relative to the config: `"renaming": "efpt.Sales.renaming.json"` (default `efpt.renaming.json`).
+The section can also name the renaming file, relative to the config: `"renaming": "efpt.Sales.renaming.json"` (default `efpt.renaming.json`), and the line endings of generated files: `"line-endings": "crlf"` or `"lf"`. The default, `"auto"`, matches the existing generated code, and leaves the engine's output alone when there is none yet.
 
 ### SQL Server
 

@@ -1,7 +1,7 @@
 import { access, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { UsageError, type CliArgs } from '../args.js';
-import { generateRequest, generateTimeoutMs, prepareConfig } from '../commands/generate.js';
+import { generateKeepingLineEndings, generateTimeoutMs, prepareConfig } from '../commands/generate.js';
 import { prepareEngine, type Output } from '../commands/common.js';
 import { findConfigFiles } from '../config/discovery.js';
 import { efcptPathFor, findVsConfigFiles } from '../config/vs-import.js';
@@ -17,7 +17,7 @@ import {
 import { createConfigTemplate } from '../config/template.js';
 import { getUiSection, userSecretConnectionKeys } from '../connection.js';
 import type { Engine } from '../engine/locate.js';
-import { generate, listObjects } from '../engine/run.js';
+import { listObjects } from '../engine/run.js';
 import { findProjectFile, readProject } from '../project.js';
 import { redact } from '../redact.js';
 import { resolveSession, type Session } from '../session.js';
@@ -331,10 +331,13 @@ export class UiController {
     this.busy = true;
     try {
       for (const change of await prepareConfig(session, connection)) onLog(change);
-      const result = await generate(await this.engine(session), generateRequest(session, connection), {
-        timeoutMs: generateTimeoutMs,
-        onLog,
-      });
+      const { doc: result, lineEndingNote } = await generateKeepingLineEndings(
+        await this.engine(session),
+        session,
+        connection,
+        { timeoutMs: generateTimeoutMs, onLog },
+      );
+      if (lineEndingNote) onLog(lineEndingNote);
       if (await exists(session.configPath)) await this.reloadConfig(session);
       return { result, config: session.config?.config };
     } finally {

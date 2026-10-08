@@ -11,6 +11,8 @@ export interface UiConfigSection {
   connection?: ConnectionReference;
   /** Renaming file, relative to the config. Default: efpt.renaming.json next to the config. */
   renaming?: string;
+  /** Line endings of generated files. Default "auto": those of the existing generated code. */
+  'line-endings'?: 'auto' | 'crlf' | 'lf';
 }
 
 /** Where to read the connection from. Never a plain connection string, so secrets stay out of the config file. */

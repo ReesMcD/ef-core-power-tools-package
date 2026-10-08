@@ -182,6 +182,12 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
         json(response, 200, await controller.info());
         return;
       }
+      case 'POST /api/connection-secret': {
+        const body = (await readJsonBody(request)) as { key?: unknown };
+        await controller.useUserSecret(typeof body.key === 'string' ? body.key : '');
+        json(response, 200, await controller.info());
+        return;
+      }
       case 'GET /api/config':
         json(response, 200, await controller.getConfig());
         return;

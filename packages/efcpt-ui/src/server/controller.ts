@@ -15,7 +15,7 @@ import {
   type EfcptConfig,
 } from '../config/io.js';
 import { createConfigTemplate } from '../config/template.js';
-import { getUiSection } from '../connection.js';
+import { getUiSection, userSecretConnectionKeys } from '../connection.js';
 import type { Engine } from '../engine/locate.js';
 import { generate, listObjects } from '../engine/run.js';
 import { findProjectFile, readProject } from '../project.js';
@@ -138,7 +138,17 @@ export class UiController {
     for (const file of await findVsConfigFiles(this.rootDir)) {
       if (!(await exists(efcptPathFor(file)))) vsConfigs.push(path.relative(this.rootDir, file));
     }
+    const connectionChoices =
+      session && !session.connection
+        ? await userSecretConnectionKeys({
+            env: this.options.env,
+            config: session.config?.config ?? {},
+            projectDir: session.project.projectDir,
+            userSecretsId: session.project.userSecretsId,
+          })
+        : [];
     return {
+      connectionChoices,
       configPath: session?.configPath,
       configExists: Boolean(session?.config),
       configs: configs.sort(),
@@ -212,6 +222,24 @@ export class UiController {
   async getConfig(): Promise<ConfigResponse> {
     const session = this.requireSession();
     return { config: session.config?.config ?? {}, exists: Boolean(session.config) };
+  }
+
+  /**
+   * Uses one of the connection strings in the project's user secrets and records that choice in the config, so
+   * the next run (UI or --generate) finds it too. The secret itself stays in the user secrets.
+   */
+  async useUserSecret(key: string): Promise<void> {
+    const session = this.requireSession();
+    const info = await this.info();
+    if (!info.connectionChoices.includes(key)) {
+      throw new RequestError(`${key} is not a connection string in this project's user secrets`, 404);
+    }
+    const config = structuredClone(session.config?.config ?? {});
+    config['efcpt-ui'] = { ...getUiSection(config), connection: { 'user-secrets': key } };
+    await mkdir(path.dirname(session.configPath), { recursive: true });
+    await saveConfig(session.configPath, config, session.config?.format ?? defaultFormat);
+    this.connectionOverride = undefined;
+    await this.load(session.configPath);
   }
 
   async saveConfig(config: unknown): Promise<void> {

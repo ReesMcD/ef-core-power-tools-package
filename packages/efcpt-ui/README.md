@@ -106,13 +106,18 @@ Connection strings are never stored in `efcpt-config.json`. They are looked up i
     "provider": "mssql", // optional, usually inferred
     "connection": { "env": "SALES_DB" }, // environment variable
     // or { "user-secrets": "ConnectionStrings:Sales" }         // dotnet user-secrets of the project
+    // or { "user-secrets": "ConnectionStrings:Sales", "project": "../Sales.Api/Sales.Api.csproj" }  // of another project
     // or { "appsettings": "appsettings.Development.json", "key": "ConnectionStrings:Sales" }
     // or { "dacpac": "../Database/bin/Debug/Database.dacpac" }
   },
 }
 ```
 
+5. the project's user secrets, when nothing above is set: if they hold one `ConnectionStrings:*` entry, efcpt-ui uses it. If they hold several, the UI lets you pick one and records the choice in the config (the `--list` and `--generate` commands name the line to add).
+
 Paths in this section are relative to the project folder. The engine keeps this section when it rewrites the config.
+
+**User secrets** are read where `dotnet user-secrets` writes them: `~/.microsoft/usersecrets/<UserSecretsId>/secrets.json` on Linux, macOS and WSL (from `$HOME`), `%APPDATA%\Microsoft\UserSecrets\...` on Windows. In WSL, secrets set on the Windows side are found too. The UserSecretsId comes from the project or a `Directory.Build.props` above it. When the secrets belong to another project, such as the startup project of a solution whose models live in a class library, name it with `"project"` (or give its `"id"`).
 
 The section can also name the renaming file, relative to the config: `"renaming": "efpt.Sales.renaming.json"` (default `efpt.renaming.json`).
 

@@ -24,6 +24,8 @@ export interface SessionInfo {
   configs: string[];
   /** Visual Studio extension configs (efpt.*config.json) not imported yet, relative to the project folder. */
   vsConfigs: string[];
+  /** Names of the connection strings in the project's user secrets (never the values), when none is chosen yet. */
+  connectionChoices: string[];
   project?: ProjectSummary;
   /** Where the connection comes from. Never contains the connection string itself. */
   connection?: { source: string; isDacpac: boolean };

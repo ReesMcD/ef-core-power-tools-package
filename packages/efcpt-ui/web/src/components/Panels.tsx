@@ -17,6 +17,7 @@ export function ConnectionPanel(props: {
   busy: boolean;
   error?: string;
   onConnect(connection: string, provider: string): void;
+  onUseSecret(key: string): void;
   onCancel?: () => void;
 }) {
   const [connection, setConnection] = useState('');
@@ -32,6 +33,24 @@ export function ConnectionPanel(props: {
           : 'No connection string was found for this config.'}{' '}
         A connection entered here is kept in memory only and never written to disk.
       </p>
+      {props.session.connectionChoices.length > 0 && (
+        <div className="field">
+          <p>
+            This project&apos;s user secrets have these connection strings. Pick one and it is used from now
+            on (the config records which one, the secret stays in your user secrets):
+          </p>
+          <ul className="config-list">
+            {props.session.connectionChoices.map((key) => (
+              <li key={key}>
+                <button disabled={props.busy} onClick={() => props.onUseSecret(key)}>
+                  Use {key}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p>Or enter a connection string:</p>
+        </div>
+      )}
       <div className="field">
         <label htmlFor="connection">Connection string, or path to a .dacpac</label>
         <div className="inline">

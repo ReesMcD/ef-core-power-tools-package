@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -72,6 +72,36 @@ function rawRequest(url: string, headers: Record<string, string>): Promise<numbe
     req.on('error', reject);
     req.end();
   });
+}
+
+/** A project with two connection strings in its user secrets (where dotnet keeps them: $HOME or %APPDATA%). */
+async function withUserSecrets(dir: string): Promise<Record<string, string>> {
+  const home = await mkdtemp(path.join(tmpdir(), 'efcpt-ui-home-'));
+  const secrets =
+    process.platform === 'win32'
+      ? path.join(home, 'Microsoft', 'UserSecrets', 'sample-secrets')
+      : path.join(home, '.microsoft', 'usersecrets', 'sample-secrets');
+  await mkdir(secrets, { recursive: true });
+  await writeFile(
+    path.join(secrets, 'secrets.json'),
+    JSON.stringify({
+      'ConnectionStrings:Shop': 'Data Source=shop.db',
+      'ConnectionStrings:Audit': 'Data Source=audit.db',
+    }),
+  );
+  const csproj = path.join(dir, 'Sample.csproj');
+  await writeFile(
+    csproj,
+    (await readFile(csproj, 'utf8')).replace(
+      '</RootNamespace>',
+      '</RootNamespace>\n    <UserSecretsId>sample-secrets</UserSecretsId>',
+    ),
+  );
+  // nothing configured: efcpt-ui should find the user secrets by itself
+  const config = JSON.parse(await readFile(path.join(dir, 'efcpt-config.json'), 'utf8'));
+  delete config['efcpt-ui'];
+  await writeFile(path.join(dir, 'efcpt-config.json'), JSON.stringify(config, null, 2));
+  return process.platform === 'win32' ? { APPDATA: home } : { HOME: home };
 }
 
 describe('UI server security', () => {
@@ -230,5 +260,34 @@ describe('UI server API', () => {
     expect(info.configPath).toBe(path.join(dir, 'efcpt-config.json'));
     expect(info.vsConfigs).toEqual([]); // imported: no longer offered
     expect((await controller.getConfig()).config.names?.['dbcontext-name']).toBe('ShopDbContext');
+  });
+
+  it("offers the connection strings in the project's user secrets and records the choice in the config", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'efcpt-ui-server-'));
+    await cp(sampleProject, dir, { recursive: true });
+    const env = await withUserSecrets(dir);
+    const controller = new UiController({
+      args: parseCliArgs(['--engine', fakeEngine]),
+      env,
+      cwd: dir,
+      io: quiet,
+    });
+    await controller.init();
+
+    const before = await controller.info();
+    expect(before.connection).toBeUndefined();
+    expect(before.connectionChoices).toEqual(['ConnectionStrings:Shop', 'ConnectionStrings:Audit']);
+    expect(JSON.stringify(before)).not.toContain('shop.db'); // names only, never the values
+
+    await expect(controller.useUserSecret('ConnectionStrings:Nope')).rejects.toThrow(
+      /not a connection string/,
+    );
+    await controller.useUserSecret('ConnectionStrings:Audit');
+    const after = await controller.info();
+    expect(after.connection?.source).toBe('user secret ConnectionStrings:Audit');
+    expect(after.connectionChoices).toEqual([]);
+    const saved = JSON.parse(await readFile(path.join(dir, 'efcpt-config.json'), 'utf8'));
+    expect(saved['efcpt-ui']).toEqual({ connection: { 'user-secrets': 'ConnectionStrings:Audit' } });
+    expect(JSON.stringify(saved)).not.toContain('audit.db');
   });
 });

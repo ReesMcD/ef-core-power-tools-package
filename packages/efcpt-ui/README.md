@@ -10,6 +10,8 @@ This is a fork of [EF Core Power Tools](https://github.com/ErikEJ/EFCorePowerToo
 
 Six steps, each with commands to copy and paste. Pick the block for your shell.
 
+**Already installed?** To pick up new changes pushed to this repository, see [Updating efcpt-ui](#updating-efcpt-ui).
+
 | Where you run it      | Shells          | SQL Server sign-in                                                    |
 | --------------------- | --------------- | --------------------------------------------------------------------- |
 | Windows               | cmd, PowerShell | SQL login, Windows authentication or Microsoft Entra ID               |
@@ -185,7 +187,7 @@ mkdir -p ~/.config/fish/functions
 printf "function efcpt-ui\n    '%s' '%s' \$argv\nend\n" (command -q asdf; and asdf which node; or command -v node) (pwd)/dist/cli.js > ~/.config/fish/functions/efcpt-ui.fish
 ```
 
-Check with `efcpt-ui --version`. The function points at your clone, so updates (step 6) need no reinstall. If you later uninstall that Node version, run these lines again.
+Check with `efcpt-ui --version`. The function points at your clone, so [updates](#updating-efcpt-ui) need no reinstall. If you later uninstall that Node version, run these lines again.
 
 ### 4. Connection string
 
@@ -369,10 +371,19 @@ Good to know:
 
 ### Updating efcpt-ui
 
-Pull, rebuild the engines you use, then rebuild efcpt-ui. The `efcpt-ui` command picks up the new version automatically.
+**Do this after new changes are pushed to this repository.** Your clone doesn't update itself. Until you pull and rebuild, `efcpt-ui` keeps running the version you built. You don't need to reinstall anything or redo step 3: the `efcpt-ui` command points at your clone, so it runs the new build straight away.
+
+To see whether there's anything new, run this in your clone:
 
 ```bash
-# WSL
+git fetch
+git log --oneline HEAD..origin/master    # empty: you're up to date
+```
+
+To update, use the block for your shell. These commands rebuild all three engines; skip the ones you don't use.
+
+```bash
+# WSL: bash, zsh or fish
 cd ~/ef-core-power-tools-package
 git pull
 dotnet build src/Core/efcpt.8/efcpt.8.csproj -c Release
@@ -384,7 +395,7 @@ npm run build
 ```
 
 ```cmd
-:: Windows (cmd; in PowerShell use cd ~\ef-core-power-tools-package)
+:: Windows cmd
 cd /d %USERPROFILE%\ef-core-power-tools-package
 git pull
 dotnet build src\Core\efcpt.8\efcpt.8.csproj -c Release
@@ -394,6 +405,25 @@ cd packages\efcpt-ui
 npm ci
 npm run build
 ```
+
+```powershell
+# Windows PowerShell
+cd ~\ef-core-power-tools-package
+git pull
+dotnet build src\Core\efcpt.8\efcpt.8.csproj -c Release
+dotnet build src\Core\efcpt.9\efcpt.9.csproj -c Release
+dotnet build src\Core\efcpt.10\efcpt.10.csproj -c Release
+cd packages\efcpt-ui
+npm ci
+npm run build
+```
+
+- **Cloned somewhere else?** Use that folder in the first `cd`. To find it:
+  - **WSL:** `type efcpt-ui` shows the path, `.../packages/efcpt-ui/dist/cli.js`.
+  - **Windows:** run `npm root -g`. The `efcpt-ui` entry in that folder links to your clone.
+- **Check what you're on:** `git log -1 --oneline` in the clone.
+- **`git pull` refuses because of local changes:** run `git stash`, then `git pull` again.
+- **Run the build steps every time.** A pull alone changes nothing until you rebuild.
 
 ### Troubleshooting
 
@@ -407,6 +437,7 @@ npm run build
 | _Microsoft Entra ID sign-in failed_                                    | Run `az login` again, on the same side (Windows or WSL) you run efcpt-ui. Your account must be a user in the database.             |
 | _The certificate chain was issued by an authority that is not trusted_ | Add `TrustServerCertificate=True` to the connection string.                                                                        |
 | Every generated file shows as changed                                  | Update efcpt-ui (above). It keeps your files' line endings. Also check the project's EF Core version matches the engine you built. |
+| Something fixed upstream still happens to you                          | Update your clone and rebuild: [Updating efcpt-ui](#updating-efcpt-ui).                                                            |
 | _no engine found_                                                      | Build the engine for your project's EF Core version (step 2).                                                                      |
 
 ## Using it in a project

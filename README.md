@@ -21,6 +21,7 @@
 >
 > - The connection string is read from the project's user secrets, like your app does. Other options are in [Connection strings](packages/efcpt-ui/README.md#connection-strings).
 > - Run it on a branch: generating overwrites the output folder.
+> - **After new changes are pushed here,** update your clone: `git pull`, rebuild the engine, then `npm ci` and `npm run build` in `packages/efcpt-ui`. The commands for each shell are in [Updating efcpt-ui](packages/efcpt-ui/README.md#updating-efcpt-ui).
 >
 > Everything below is the original EF Core Power Tools README.
 

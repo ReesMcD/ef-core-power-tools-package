@@ -80,6 +80,19 @@ describe('SQL Server connection hints', () => {
     ).toMatch(/Run efcpt-ui from PowerShell or cmd/);
   });
 
+  it('explains Microsoft Entra ID sign-in failures', () => {
+    const entra = 'Server=mi.database.windows.net;Database=Bff;Authentication=Active Directory Default';
+    for (const error of [
+      "Login failed for user ''.",
+      'DefaultAzureCredential failed to retrieve a token from the included credentials.',
+    ]) {
+      expect(connectionHint([error], entra)).toContain('az login');
+    }
+    expect(connectionHint(["Login failed for user ''."], 'Server=x;User Id=a;Password=b')).toContain(
+      'user name and password',
+    );
+  });
+
   it('stays quiet for other errors', () => {
     expect(connectionHint(['Invalid object name dbo.Foo'], '')).toBeUndefined();
   });

@@ -17,6 +17,9 @@ interface Rule {
 const trustsCertificate = (connection: string) =>
   /(^|;)\s*Trust\s*Server\s*Certificate\s*=\s*(true|yes)\s*(;|$)/i.test(connection);
 
+const usesEntra = (connection: string) =>
+  /(^|;)\s*Authentication\s*=\s*"?\s*Active\s*Directory/i.test(connection);
+
 const rules: Rule[] = [
   {
     test: (errors, connection) =>
@@ -57,6 +60,19 @@ const rules: Rule[] = [
       'Windows authentication (Trusted_Connection / Integrated Security) failed. It needs Windows, or Kerberos set ' +
       'up on macOS and Linux. Otherwise use a SQL login (User Id=...;Password=...) or ' +
       'Authentication=Active Directory Default for Azure SQL.',
+  },
+  {
+    test: (errors, connection) =>
+      usesEntra(connection) &&
+      /Login failed|CredentialUnavailable|AuthenticationFailed|DefaultAzureCredential|AADSTS|Failed to authenticate|token/i.test(
+        errors,
+      ),
+    hint: () =>
+      'Microsoft Entra ID sign-in failed. With Authentication=Active Directory Default, sign in first with ' +
+      '"az login" (Azure CLI) in the same environment: WSL needs its own az login, separate from Windows. Your ' +
+      'account must also be a user in the database (CREATE USER [you@company.com] FROM EXTERNAL PROVIDER), and ' +
+      'the server must accept Entra ID logins (Azure SQL Database, Azure SQL Managed Instance, or SQL Server ' +
+      'with Entra ID set up).',
   },
   {
     test: (errors) => /Cannot open database "/i.test(errors),

@@ -8,122 +8,406 @@ This is a fork of [EF Core Power Tools](https://github.com/ErikEJ/EFCorePowerToo
 
 ## Getting started
 
-Pick where you run it:
+Six steps, each with commands to copy and paste. Pick the block for your shell.
 
-- **Windows (cmd)**: works with Windows authentication and SQL logins.
-- **WSL**: works with SQL logins (Windows authentication needs Windows, see below). The UI opens in your Windows browser.
+| Where you run it      | Shells          | SQL Server sign-in                                                    |
+| --------------------- | --------------- | --------------------------------------------------------------------- |
+| Windows               | cmd, PowerShell | SQL login, Windows authentication or Microsoft Entra ID               |
+| WSL (or Linux, macOS) | bash, zsh, fish | SQL login or Microsoft Entra ID. Windows authentication needs Windows |
 
-Each takes a few minutes the first time. Try it on a branch or a copy of your project: generating overwrites the output folder and removes files it generated before that are no longer needed (`soft-delete-obsolete-files`).
+Install it separately on each side you use, because the build is per operating system. Try it on a branch of your project first: generating overwrites the output folder and removes files it generated before that are no longer needed.
 
-### Windows (cmd)
+### 1. Prerequisites
 
-**1. Prerequisites** (once): the .NET 10 SDK, the .NET 8 runtime (only for EF Core 8 or 9 projects), Node 22 or newer and git.
+You need git, the .NET 10 SDK, the .NET 8 runtime (only for EF Core 8 or 9 projects) and Node 22 or newer.
+
+#### Windows
+
+In cmd or PowerShell:
 
 ```cmd
+winget install Git.Git
 winget install Microsoft.DotNet.SDK.10
 winget install Microsoft.DotNet.Runtime.8
-winget install OpenJS.NodeJS.LTS
-winget install Git.Git
 ```
 
-Open a new cmd window afterwards so the new programs are on your PATH.
+Then Node, one of:
 
-**2. Install efcpt-ui** (once):
+- **Plain Node** (simplest):
+
+  ```cmd
+  winget install OpenJS.NodeJS.LTS
+  ```
+
+- **nvm-windows**: install it, then open a new window **as administrator** (`nvm use` needs it):
+
+  ```cmd
+  winget install CoreyButler.NVMforWindows
+  ```
+
+  ```cmd
+  nvm install 22
+  nvm use 22
+  ```
+
+asdf doesn't run on Windows. Close the window and open a new one so the new programs are on your PATH, then check:
 
 ```cmd
+node --version
+dotnet --list-runtimes
+```
+
+#### WSL
+
+In bash, zsh or fish:
+
+```bash
+sudo apt update && sudo apt install -y git dotnet-sdk-10.0 dotnet-runtime-8.0
+```
+
+If apt can't find `dotnet-sdk-10.0`, follow [Microsoft's .NET install guide](https://learn.microsoft.com/dotnet/core/install/linux) for your distribution. Ubuntu's own Node is too old, so install Node with asdf or nvm. Skip this if `node --version` already shows v22 or newer.
+
+**asdf** ([install asdf](https://asdf-vm.com/guide/getting-started.html) first):
+
+```bash
+# bash or zsh
+asdf plugin add nodejs
+v=$(asdf latest nodejs 22)
+asdf install nodejs $v
+asdf set --home nodejs $v     # asdf before 0.16: asdf global nodejs $v
+```
+
+```fish
+# fish
+asdf plugin add nodejs
+set v (asdf latest nodejs 22)
+asdf install nodejs $v
+asdf set --home nodejs $v     # asdf before 0.16: asdf global nodejs $v
+```
+
+**nvm**:
+
+```bash
+# bash or zsh
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+exec $SHELL                   # reload the shell so nvm is available
+nvm install 22
+nvm alias default 22
+```
+
+```fish
+# fish: nvm.fish, installed with fisher
+curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher
+fisher install jorgebucaran/nvm.fish
+nvm install 22
+set --universal nvm_default_version 22
+```
+
+Check:
+
+```bash
+node --version
+dotnet --list-runtimes
+```
+
+### 2. Install efcpt-ui
+
+This clones the repository into your home folder and builds the engines for EF Core 8, 9 and 10. Building all three is the simplest; you only need the ones your projects use.
+
+**Windows, cmd:**
+
+```cmd
+cd /d %USERPROFILE%
 git clone https://github.com/ReesMcD/ef-core-power-tools-package.git
 cd ef-core-power-tools-package
+dotnet build src\Core\efcpt.8\efcpt.8.csproj -c Release
+dotnet build src\Core\efcpt.9\efcpt.9.csproj -c Release
 dotnet build src\Core\efcpt.10\efcpt.10.csproj -c Release
 cd packages\efcpt-ui
 npm ci
 npm run build
 npm link
-efcpt-ui --version
 ```
 
-Build the engine that matches your project's EF Core version: `efcpt.8`, `efcpt.9` or `efcpt.10` (building several is fine; efcpt-ui picks the right one).
+**Windows, PowerShell:**
 
-**3. Connection string.** If your project keeps it in user secrets (`dotnet user-secrets`), there is nothing to do: efcpt-ui reads them like the app does (see [Connection strings](#connection-strings)). Otherwise put it in an environment variable for now:
-
-```cmd
-set "MY_DB=Server=YOURSERVER;Database=YourDb;Integrated Security=True;TrustServerCertificate=True"
+```powershell
+cd ~
+git clone https://github.com/ReesMcD/ef-core-power-tools-package.git
+cd ef-core-power-tools-package
+dotnet build src\Core\efcpt.8\efcpt.8.csproj -c Release
+dotnet build src\Core\efcpt.9\efcpt.9.csproj -c Release
+dotnet build src\Core\efcpt.10\efcpt.10.csproj -c Release
+cd packages\efcpt-ui
+npm ci
+npm run build
+npm link
 ```
 
-**4. Run it in your project:**
-
-```cmd
-cd C:\path\to\YourProject
-git checkout -b try-efcpt-ui
-efcpt-ui --import-vs efpt.config.json
-efcpt-ui --list
-efcpt-ui
-```
-
-- `--import-vs` converts a Visual Studio extension config; skip it if you have none.
-- `--list` is read-only and shows what would be generated.
-- `efcpt-ui` opens the UI: pick tables and options, then **Save & Generate**.
-- Using the `MY_DB` variable instead of user secrets? Add `--connection-env MY_DB` to the last two commands.
-
-**5. Update** later: `git pull` in `ef-core-power-tools-package`, run the `dotnet build` line again, then `npm run build` in `packages\efcpt-ui`.
-
-**PowerShell** works too: set variables with `$env:MY_DB = "..."`. If it says _running scripts is disabled on this system_, your execution policy blocks the `efcpt-ui.ps1` launcher that npm creates. Run `efcpt-ui.cmd` instead, or allow local scripts with `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
-
-### WSL
-
-**1. Prerequisites** (once, in your WSL distribution): the .NET 10 SDK, the .NET 8 runtime (only for EF Core 8 or 9 projects) and Node 22 or newer. Ubuntu's own Node is too old, so install it with nvm:
+**WSL (bash, zsh or fish):**
 
 ```bash
-sudo apt update && sudo apt install -y dotnet-sdk-10.0 dotnet-runtime-8.0 git
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-source ~/.bashrc && nvm install 22
-```
-
-If apt can't find `dotnet-sdk-10.0`, follow [Microsoft's .NET install guide](https://learn.microsoft.com/dotnet/core/install/linux) for your distribution.
-
-**2. Install efcpt-ui** (once):
-
-```bash
-git clone https://github.com/ReesMcD/ef-core-power-tools-package.git ~/ef-core-power-tools-package
-cd ~/ef-core-power-tools-package
+cd ~
+git clone https://github.com/ReesMcD/ef-core-power-tools-package.git
+cd ef-core-power-tools-package
+dotnet build src/Core/efcpt.8/efcpt.8.csproj -c Release
+dotnet build src/Core/efcpt.9/efcpt.9.csproj -c Release
 dotnet build src/Core/efcpt.10/efcpt.10.csproj -c Release
 cd packages/efcpt-ui
 npm ci
 npm run build
-npm link
-efcpt-ui --version
 ```
 
-As on Windows, build `efcpt.8`, `efcpt.9` or `efcpt.10` to match your project.
+### 3. Add the `efcpt-ui` command
 
-**3. Connection string.** Use a SQL login. If your project keeps the connection string in user secrets, there is nothing to do: efcpt-ui reads `~/.microsoft/usersecrets` like the app does, and also finds secrets you set on the Windows side. To add one:
+**Windows:** `npm link` in step 2 already added it. Open a new window and check with `efcpt-ui --version`.
+
+- **PowerShell says _running scripts is disabled on this system_:** run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, or type `efcpt-ui.cmd` instead of `efcpt-ui`.
+- **With nvm-windows**, global commands belong to one Node version. If you `nvm use` another version, run `nvm use 22` again before using efcpt-ui.
+
+**WSL:** add a shell function that runs efcpt-ui with the Node you just used. With asdf or nvm, a project can pin another Node version (`.tool-versions`, `.nvmrc`). An `npm link`ed command then fails in that project with _No executable efcpt-ui found for current version_; the function works in every folder. Run these from `~/ef-core-power-tools-package/packages/efcpt-ui`, where step 2 ended:
 
 ```bash
-cd /path/to/YourProject
-dotnet user-secrets init      # only if the project has no UserSecretsId yet
+# zsh
+echo "efcpt-ui() { '$(asdf which node 2>/dev/null || command -v node)' '$PWD/dist/cli.js' \"\$@\"; }" >> ~/.zshrc
+exec zsh
+```
+
+```bash
+# bash
+echo "efcpt-ui() { '$(asdf which node 2>/dev/null || command -v node)' '$PWD/dist/cli.js' \"\$@\"; }" >> ~/.bashrc
+exec bash
+```
+
+```fish
+# fish
+mkdir -p ~/.config/fish/functions
+printf "function efcpt-ui\n    '%s' '%s' \$argv\nend\n" (command -q asdf; and asdf which node; or command -v node) (pwd)/dist/cli.js > ~/.config/fish/functions/efcpt-ui.fish
+```
+
+Check with `efcpt-ui --version`. The function points at your clone, so updates (step 6) need no reinstall. If you later uninstall that Node version, run these lines again.
+
+### 4. Connection string
+
+Using a Microsoft account (Windows authentication or Entra ID)? See [Signing in with a Microsoft account](#signing-in-with-a-microsoft-account) below.
+
+**If your project keeps its connection string in user secrets** (`dotnet user-secrets`), there is nothing to do. efcpt-ui reads them like your app does. In WSL it reads `~/.microsoft/usersecrets` and also finds secrets you set on the Windows side. If there are several connection strings, the UI asks which one to use and remembers your choice.
+
+To add one, run this in your project folder:
+
+```bash
+# bash, zsh, fish and PowerShell
+dotnet user-secrets init   # only if the project has no UserSecretsId yet
 dotnet user-secrets set "ConnectionStrings:Default" 'Server=YOURSERVER;Database=YourDb;User Id=youruser;Password=yourpassword;TrustServerCertificate=True'
 ```
 
-If SQL Server runs on your own Windows machine, `localhost` inside WSL does not reach it by default. Turn on mirrored networking: add `[wsl2]` and `networkingMode=mirrored` on two lines to `C:\Users\<you>\.wslconfig` and run `wsl --shutdown`. SQL Server must also accept TCP connections and SQL logins.
-
-**4. Run it in your project:**
-
-```bash
-cd /path/to/YourProject       # a project on the C: drive is under /mnt/c/...
-git checkout -b try-efcpt-ui
-efcpt-ui --import-vs efpt.config.json
-efcpt-ui --list
-efcpt-ui
+```cmd
+:: cmd, here with Windows authentication
+dotnet user-secrets init
+dotnet user-secrets set "ConnectionStrings:Default" "Server=YOURSERVER;Database=YourDb;Integrated Security=True;TrustServerCertificate=True"
 ```
 
-The same notes as on Windows apply to these commands. The UI opens in your Windows browser.
+#### Signing in with a Microsoft account
 
-**5. Update** later: `git pull` in `~/ef-core-power-tools-package`, run the `dotnet build` line again, then `npm run build` in `packages/efcpt-ui`.
+There are two kinds, depending on where the database runs.
 
-**Windows authentication** (`Integrated Security=True`) does not work from WSL: efcpt-ui and the engine are Linux programs there, without your Windows login. Use cmd for it. Keep one checkout per side, because `npm ci` and `npm link` are per operating system.
+**Windows authentication** (`Integrated Security=True`) is for SQL Server on your company network, with your domain account. It works only from **cmd or PowerShell on Windows**, not from WSL.
 
-### macOS and Linux
+1. Open cmd or PowerShell as yourself. To use a different domain account, open a window for it with `runas /netonly /user:CORP\otheruser cmd`.
+2. Save the connection string in the project's user secrets. It contains no password:
 
-Follow the WSL steps, installing .NET and Node the usual way for your system.
+   ```cmd
+   cd C:\path\to\YourProject
+   dotnet user-secrets init
+   dotnet user-secrets set "ConnectionStrings:Default" "Server=sqlserver01;Database=YourDb;Integrated Security=True;TrustServerCertificate=True"
+   ```
+
+   - Named instance: `Server=sqlserver01\INSTANCE`.
+   - LocalDB: `Server=(localdb)\MSSQLLocalDB`.
+   - If it can't reach the server, connect to the VPN and try the full name: `Server=sqlserver01.corp.example.com`.
+
+3. Check it with `efcpt-ui --list`. On a failure, efcpt-ui says what to change: no access for your account, a Kerberos or VPN problem, or the wrong server name.
+
+**Microsoft Entra ID** (`Authentication=Active Directory Default`) is for Azure SQL Database and Azure SQL Managed Instance, with your work account. It works from Windows (cmd, PowerShell) and WSL (bash, zsh, fish).
+
+1. Install the Azure CLI and sign in. Windows and WSL keep separate sign-ins, so sign in on each side you use.
+
+   ```cmd
+   :: Windows (cmd or PowerShell); open a new window after the install
+   winget install Microsoft.AzureCLI
+   az login
+   ```
+
+   ```bash
+   # WSL (bash, zsh or fish)
+   curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+   az login --use-device-code
+   ```
+
+   With several tenants, add `--tenant yourcompany.onmicrosoft.com`. On Windows, being signed in to Visual Studio with the same account also works.
+
+2. Save the connection string in the project's user secrets. It contains no password:
+
+   ```bash
+   dotnet user-secrets set "ConnectionStrings:Default" "Server=tcp:yourserver.database.windows.net,1433;Database=YourDb;Authentication=Active Directory Default;Encrypt=True"
+   ```
+
+   For a Managed Instance, the server name looks like `yourmi.abc123def456.database.windows.net`. Copy it from the Azure portal.
+
+3. Check it with `efcpt-ui --list`.
+   - If sign-in fails, run `az login` again: sign-ins expire.
+   - Your account must be a user in the database. A DBA adds it with `CREATE USER [you@company.com] FROM EXTERNAL PROVIDER`.
+
+`Active Directory Interactive` also works, but it opens a sign-in window each time efcpt-ui connects, so `Active Directory Default` is the better choice. Entra ID uses Microsoft.Data.SqlClient's built-in support. CI doesn't cover it, because there is no Azure SQL there.
+
+#### Environment variable instead
+
+You can also use an environment variable for one session, then add `--connection-env MY_DB` to the efcpt-ui commands:
+
+| Shell      | Command                                      |
+| ---------- | -------------------------------------------- |
+| cmd        | `set "MY_DB=Server=...;Database=...;..."`    |
+| PowerShell | `$env:MY_DB = 'Server=...;Database=...;...'` |
+| bash, zsh  | `export MY_DB='Server=...;Database=...;...'` |
+| fish       | `set -x MY_DB 'Server=...;Database=...;...'` |
+
+More options are in [Connection strings](#connection-strings).
+
+#### From WSL to SQL Server on your own Windows machine
+
+`localhost` doesn't reach Windows by default. Add these two lines to `C:\Users\<you>\.wslconfig`, then run `wsl --shutdown`:
+
+```ini
+[wsl2]
+networkingMode=mirrored
+```
+
+SQL Server must also accept TCP connections and SQL logins.
+
+### 5. First run in your project
+
+The commands are the same in every shell. Use `\` instead of `/` in paths on Windows. A project on the C: drive is under `/mnt/c/...` in WSL.
+
+```bash
+cd /path/to/YourProject
+git checkout -b try-efcpt-ui
+efcpt-ui --import-vs efpt.config.json     # only if you used the Visual Studio extension
+efcpt-ui --list                           # read-only: the connection, the engine and what would be generated
+efcpt-ui                                  # opens the UI in your browser: pick tables and options, then Save & Generate
+```
+
+**Several configs** (for example one per database, such as `BFF/efpt.Sales.config.json` and `BFF/efpt.Hr.config.json`): import each one, then name the config with `--config`:
+
+```bash
+efcpt-ui --import-vs BFF/efpt.Sales.config.json
+efcpt-ui --import-vs BFF/efpt.Hr.config.json
+efcpt-ui --config BFF/efcpt-config.Sales.json --list
+efcpt-ui --config BFF/efcpt-config.Sales.json
+```
+
+Imported configs generate the same code as the Visual Studio extension, with the same line endings as your existing files. `git status` shows only what really changed.
+
+### 6. Refresh without the UI
+
+The UI is for choosing tables and options. To regenerate after the database changes, the same as **Refresh** in Visual Studio, use `--generate`. It uses the saved config, generates and exits:
+
+```bash
+efcpt-ui --config BFF/efcpt-config.Sales.json --generate
+```
+
+To refresh every config in a project or solution with one command, save an `efcpt-refresh` command once:
+
+```fish
+# fish
+function efcpt-refresh --description 'Regenerate every efcpt config below this folder'
+    for c in **/efcpt-config*.json
+        echo "== $c"
+        efcpt-ui --config $c --generate; or return 1
+    end
+end
+funcsave efcpt-refresh
+```
+
+```bash
+# zsh (for bash, use ~/.bashrc and exec bash)
+cat >> ~/.zshrc <<'EOF'
+efcpt-refresh() {
+  find . -name 'efcpt-config*.json' -not -path '*/bin/*' -not -path '*/obj/*' -not -path '*/node_modules/*' | sort |
+    while read -r c; do echo "== $c"; efcpt-ui --config "$c" --generate < /dev/null || return 1; done
+}
+EOF
+exec zsh
+```
+
+```powershell
+# PowerShell: adds efcpt-refresh to your profile
+if (!(Test-Path $PROFILE)) { New-Item -ItemType File -Force $PROFILE | Out-Null }
+Add-Content $PROFILE @'
+function efcpt-refresh {
+  foreach ($c in Get-ChildItem -Recurse -Filter 'efcpt-config*.json' | Where-Object FullName -notmatch '\\(bin|obj|node_modules)\\') {
+    Write-Host "== $($c.FullName)"
+    efcpt-ui --config $c.FullName --generate
+    if ($LASTEXITCODE -ne 0) { return }
+  }
+}
+'@
+. $PROFILE
+```
+
+```cmd
+:: cmd: no saved command, run this line from the project folder
+for /r %c in (efcpt-config*.json) do call efcpt-ui --config "%c" --generate
+```
+
+Then run `efcpt-refresh` from your project or solution folder.
+
+Good to know:
+
+- **New tables:** imported configs only generate the tables you selected, as in Visual Studio. To add one, open the UI (`efcpt-ui --config ...`), click **Reload from database**, tick it and generate. To always pick up every new object, set `"refresh-object-lists": true` under `code-generation` in that config.
+- **Project scripts:** if your project has a `package.json`, you can save these as scripts instead. See [Using it in a project](#using-it-in-a-project).
+- **Exit codes** for scripts and CI: `0` success, `1` generation failed, `2` usage or setup problem.
+
+### Updating efcpt-ui
+
+Pull, rebuild the engines you use, then rebuild efcpt-ui. The `efcpt-ui` command picks up the new version automatically.
+
+```bash
+# WSL
+cd ~/ef-core-power-tools-package
+git pull
+dotnet build src/Core/efcpt.8/efcpt.8.csproj -c Release
+dotnet build src/Core/efcpt.9/efcpt.9.csproj -c Release
+dotnet build src/Core/efcpt.10/efcpt.10.csproj -c Release
+cd packages/efcpt-ui
+npm ci
+npm run build
+```
+
+```cmd
+:: Windows (cmd; in PowerShell use cd ~\ef-core-power-tools-package)
+cd /d %USERPROFILE%\ef-core-power-tools-package
+git pull
+dotnet build src\Core\efcpt.8\efcpt.8.csproj -c Release
+dotnet build src\Core\efcpt.9\efcpt.9.csproj -c Release
+dotnet build src\Core\efcpt.10\efcpt.10.csproj -c Release
+cd packages\efcpt-ui
+npm ci
+npm run build
+```
+
+### Troubleshooting
+
+| Message                                                                | Fix                                                                                                                                |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| _No executable efcpt-ui found for current version_ (asdf)              | The project pins another Node version. Add the shell function from [step 3](#3-add-the-efcpt-ui-command).                          |
+| `efcpt-ui: command not found`                                          | WSL: add the shell function from step 3 and open a new shell. Windows: open a new window after `npm link`.                         |
+| fish: _command substitutions not allowed here_                         | fish doesn't accept `(...)` as a command name. Use the step 3 function, which writes the path out.                                 |
+| PowerShell: _running scripts is disabled on this system_               | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, or type `efcpt-ui.cmd`.                                                     |
+| _Login failed_ or _network-related error_ from WSL                     | Use a SQL login or Entra ID, not Windows authentication. Turn on mirrored networking for a server on your own machine (step 4).    |
+| _Microsoft Entra ID sign-in failed_                                    | Run `az login` again, on the same side (Windows or WSL) you run efcpt-ui. Your account must be a user in the database.             |
+| _The certificate chain was issued by an authority that is not trusted_ | Add `TrustServerCertificate=True` to the connection string.                                                                        |
+| Every generated file shows as changed                                  | Update efcpt-ui (above). It keeps your files' line endings. Also check the project's EF Core version matches the engine you built. |
+| _no engine found_                                                      | Build the engine for your project's EF Core version (step 2).                                                                      |
 
 ## Using it in a project
 
@@ -209,7 +493,7 @@ The section can also name the renaming file, relative to the config: `"renaming"
 ### SQL Server
 
 - **Local servers:** Microsoft.Data.SqlClient encrypts connections by default, so a local or Docker SQL Server with a self-signed certificate needs `TrustServerCertificate=True` in the connection string. efcpt-ui points this out when it's the problem, and explains other common connection errors too.
-- **Windows authentication** works when efcpt-ui runs on Windows (PowerShell or cmd, not WSL), as the account running it (tested in CI against LocalDB). For example:
+- **Windows authentication** works when efcpt-ui runs on Windows (PowerShell or cmd, not WSL), as the account running it (tested in CI against LocalDB). Step by step: [Signing in with a Microsoft account](#signing-in-with-a-microsoft-account). For example:
 
   ```text
   Server=sqlserver01;Database=Sales;Integrated Security=True;TrustServerCertificate=True
@@ -217,7 +501,7 @@ The section can also name the renaming file, relative to the config: `"renaming"
   Server=(localdb)\MSSQLLocalDB;Database=Sales;Trusted_Connection=True
   ```
 
-  A Windows authentication connection string holds no password, so an `appsettings.Development.json` entry you already have is a fine place for it: `"efcpt-ui": { "connection": { "appsettings": "appsettings.Development.json", "key": "ConnectionStrings:Sales" } }`. If it fails, efcpt-ui says whether the account has no access, Kerberos couldn't get a ticket (VPN, server name, SPN), or your identity didn't reach the server. On macOS and Linux, use a SQL login or `Authentication=Active Directory Default` (Azure SQL) instead.
+  A Windows authentication connection string holds no password, so an `appsettings.Development.json` entry you already have is a fine place for it: `"efcpt-ui": { "connection": { "appsettings": "appsettings.Development.json", "key": "ConnectionStrings:Sales" } }`. If it fails, efcpt-ui says whether the account has no access, Kerberos couldn't get a ticket (VPN, server name, SPN), or your identity didn't reach the server. On macOS, Linux and WSL, use a SQL login or Microsoft Entra ID (`Authentication=Active Directory Default`, see [Signing in with a Microsoft account](#signing-in-with-a-microsoft-account)) instead.
 
 - **Database projects:** point at the built `.dacpac` instead of a database, with `--connection path/to/Database.dacpac` or `"efcpt-ui": { "connection": { "dacpac": "../Database/bin/Debug/Database.dacpac" } }`.
 - **Spatial and hierarchyid columns** are skipped (with a warning) unless you turn on `use-spatial` / `use-HierarchyId` under Settings → Type mappings and add the `Microsoft.EntityFrameworkCore.SqlServer.NetTopologySuite` / `.HierarchyId` packages.

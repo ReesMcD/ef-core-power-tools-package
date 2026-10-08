@@ -4,39 +4,21 @@
 >
 > This fork adds **efcpt-ui**: run EF Core Power Tools' reverse engineering from any .NET project, from Windows (cmd or PowerShell) or WSL, with a browser UI to pick tables and options, driven by `efcpt-config.json`. It can import your Visual Studio extension config (`efpt.config.json`) and generates the same code. Full guide: [packages/efcpt-ui/README.md](packages/efcpt-ui/README.md).
 >
-> **Windows (cmd)**: needs the .NET 10 SDK, Node 22+ and git ([prerequisites](packages/efcpt-ui/README.md#windows-cmd))
+> **Getting started:** [step-by-step guide](packages/efcpt-ui/README.md#getting-started) with commands to copy and paste for:
 >
-> ```cmd
-> git clone https://github.com/ReesMcD/ef-core-power-tools-package.git
-> cd ef-core-power-tools-package
-> dotnet build src\Core\efcpt.10\efcpt.10.csproj -c Release
-> cd packages\efcpt-ui
-> npm ci
-> npm run build
-> npm link
+> - **Windows:** cmd and PowerShell
+> - **WSL:** bash, zsh and fish
+> - **Node:** plain Node, nvm and asdf
+> - **Sign-in:** SQL logins, Windows authentication and Microsoft Entra ID
 >
-> cd C:\path\to\YourProject
-> efcpt-ui --list
-> efcpt-ui
-> ```
->
-> **WSL**: needs the .NET 10 SDK, Node 22+ and git in WSL ([prerequisites](packages/efcpt-ui/README.md#wsl)); use a SQL login, as Windows authentication only works from cmd or PowerShell
+> In short: install .NET 10, Node 22+ and git, then clone this repository, build the engine and efcpt-ui, and run it in your project:
 >
 > ```bash
-> git clone https://github.com/ReesMcD/ef-core-power-tools-package.git ~/ef-core-power-tools-package
-> cd ~/ef-core-power-tools-package
-> dotnet build src/Core/efcpt.10/efcpt.10.csproj -c Release
-> cd packages/efcpt-ui
-> npm ci
-> npm run build
-> npm link
->
-> cd /path/to/YourProject
-> efcpt-ui --list
-> efcpt-ui
+> efcpt-ui --import-vs efpt.config.json     # if you used the Visual Studio extension
+> efcpt-ui                                  # pick tables and options in your browser
+> efcpt-ui --config efcpt-config.json --generate   # later: refresh without the UI
 > ```
 >
-> - Build `efcpt.8`, `efcpt.9` or `efcpt.10` to match your project's EF Core version.
 > - The connection string is read from the project's user secrets, like your app does. Other options are in [Connection strings](packages/efcpt-ui/README.md#connection-strings).
 > - Run it on a branch: generating overwrites the output folder.
 >

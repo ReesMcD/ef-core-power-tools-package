@@ -49,6 +49,18 @@ switch (mode) {
       console.log(JSON.stringify({ ...base, command: 'generate', entityTypeFilePaths: ['/out/Customer.cs'], args }));
     }
     break;
+  case 'write': {
+    // Writes LF files with a BOM, as the engine does on Linux, and reports only one of them
+    const { mkdirSync, writeFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const out = args[args.indexOf('-o') + 1];
+    mkdirSync(join(out, 'Models', 'dbo'), { recursive: true });
+    const customer = join(out, 'Models', 'Customer.cs');
+    writeFileSync(customer, '\uFEFFnamespace Sample;\n\npublic class Customer // café\n{\n}\n');
+    writeFileSync(join(out, 'Models', 'dbo', 'Order.cs'), '\uFEFFnamespace Sample;\n\npublic class Order\n{\n}\n');
+    console.log(JSON.stringify({ ...base, command: 'generate', entityTypeFilePaths: [customer], args }));
+    break;
+  }
   case 'error':
     console.log(JSON.stringify({ ...base, command: 'list-objects', success: false, errors: [`cannot open ${connection}`] }));
     process.exit(1);

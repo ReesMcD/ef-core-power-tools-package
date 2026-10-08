@@ -107,6 +107,43 @@ describe('efcpt-ui main', () => {
     expect(io.stdout[0]).toMatch(/^Generated 1 files in/);
   });
 
+  it('keeps the line endings of the code Visual Studio generated on Windows', async () => {
+    const dir = await copySample();
+    await mkdir(path.join(dir, 'Models'));
+    await writeFile(
+      path.join(dir, 'Models', 'Customer.cs'),
+      'namespace Sample;\r\n\r\npublic class Customer\r\n{\r\n}\r\n',
+    );
+    process.env['FAKE_ENGINE_MODE'] = 'write';
+    const io = capture();
+    const args = ['--generate', '--engine', fakeEngine, '--connection', 'Data Source=x.db'];
+    expect(await main(args, await env(), io, dir)).toBe(0);
+    expect(io.stdout).toContain('Line endings: CRLF (as in the existing code)');
+    // Reported by the engine, and written but not reported (a schema folder)
+    expect(await readFile(path.join(dir, 'Models', 'Customer.cs'), 'utf8')).toBe(
+      '\uFEFFnamespace Sample;\r\n\r\npublic class Customer // café\r\n{\r\n}\r\n',
+    );
+    expect(await readFile(path.join(dir, 'Models', 'dbo', 'Order.cs'), 'utf8')).toContain('class Order\r\n{');
+
+    // A config setting wins over the existing code
+    const configPath = path.join(dir, 'efcpt-config.json');
+    const config = JSON.parse(await readFile(configPath, 'utf8')) as Record<string, Record<string, unknown>>;
+    config['efcpt-ui']!['line-endings'] = 'lf';
+    await writeFile(configPath, JSON.stringify(config));
+    expect(await main(args, await env(), capture(), dir)).toBe(0);
+    expect(await readFile(path.join(dir, 'Models', 'Customer.cs'), 'utf8')).not.toContain('\r');
+  });
+
+  it('leaves line endings alone when there is no existing code', async () => {
+    const dir = await copySample();
+    process.env['FAKE_ENGINE_MODE'] = 'write';
+    const io = capture();
+    const args = ['--generate', '--engine', fakeEngine, '--connection', 'Data Source=x.db'];
+    expect(await main(args, await env(), io, dir)).toBe(0);
+    expect(io.stdout.join('\n')).not.toContain('Line endings');
+    expect(await readFile(path.join(dir, 'Models', 'Customer.cs'), 'utf8')).not.toContain('\r');
+  });
+
   it('returns 1 and redacts the connection when the engine reports an error', async () => {
     const dir = await copySample();
     process.env['FAKE_ENGINE_MODE'] = 'error';

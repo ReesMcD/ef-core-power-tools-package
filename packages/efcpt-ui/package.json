@@ -5,10 +5,12 @@
   "license": "MIT",
   "type": "module",
   "bin": {
+    "efcpt": "dist/cli.js",
     "efcpt-ui": "dist/cli.js"
   },
   "files": [
     "dist",
+    "scripts/update.mjs",
     "schema",
     "README.md"
   ],
@@ -39,6 +41,7 @@
     "check-schema": "node scripts/sync-schema.mjs --check",
     "dev:web": "vite build --watch",
     "test:ui": "playwright test",
+    "update": "node scripts/update.mjs",
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\""
   },
   "dependencies": {

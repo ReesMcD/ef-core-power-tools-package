@@ -160,34 +160,37 @@ npm ci
 npm run build
 ```
 
-### 3. Add the `efcpt-ui` command
+### 3. Add the `efcpt` command
 
-**Windows:** `npm link` in step 2 already added it. Open a new window and check with `efcpt-ui --version`.
+**Windows:** `npm link` in step 2 already added it. Open a new window and check with `efcpt --version`.
 
-- **PowerShell says _running scripts is disabled on this system_:** run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, or type `efcpt-ui.cmd` instead of `efcpt-ui`.
-- **With nvm-windows**, global commands belong to one Node version. If you `nvm use` another version, run `nvm use 22` again before using efcpt-ui.
+- **PowerShell says _running scripts is disabled on this system_:** run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, or type `efcpt.cmd` instead of `efcpt`.
+- **With nvm-windows**, global commands belong to one Node version. If you `nvm use` another version, run `nvm use 22` again before using efcpt.
 
-**WSL:** add a shell function that runs efcpt-ui with the Node you just used. With asdf or nvm, a project can pin another Node version (`.tool-versions`, `.nvmrc`). An `npm link`ed command then fails in that project with _No executable efcpt-ui found for current version_; the function works in every folder. Run these from `~/ef-core-power-tools-package/packages/efcpt-ui`, where step 2 ended:
+**WSL:** add a shell function that runs efcpt with the Node you just used. With asdf or nvm, a project can pin another Node version (`.tool-versions`, `.nvmrc`). An `npm link`ed command then fails in that project with _No executable efcpt found for current version_; the function works in every folder. Run these from `~/ef-core-power-tools-package/packages/efcpt-ui`, where step 2 ended:
 
 ```bash
 # zsh
-echo "efcpt-ui() { '$(asdf which node 2>/dev/null || command -v node)' '$PWD/dist/cli.js' \"\$@\"; }" >> ~/.zshrc
+echo "efcpt() { '$(asdf which node 2>/dev/null || command -v node)' '$PWD/dist/cli.js' \"\$@\"; }" >> ~/.zshrc
 exec zsh
 ```
 
 ```bash
 # bash
-echo "efcpt-ui() { '$(asdf which node 2>/dev/null || command -v node)' '$PWD/dist/cli.js' \"\$@\"; }" >> ~/.bashrc
+echo "efcpt() { '$(asdf which node 2>/dev/null || command -v node)' '$PWD/dist/cli.js' \"\$@\"; }" >> ~/.bashrc
 exec bash
 ```
 
 ```fish
 # fish
 mkdir -p ~/.config/fish/functions
-printf "function efcpt-ui\n    '%s' '%s' \$argv\nend\n" (command -q asdf; and asdf which node; or command -v node) (pwd)/dist/cli.js > ~/.config/fish/functions/efcpt-ui.fish
+printf "function efcpt\n    '%s' '%s' \$argv\nend\n" (command -q asdf; and asdf which node; or command -v node) (pwd)/dist/cli.js > ~/.config/fish/functions/efcpt.fish
 ```
 
-Check with `efcpt-ui --version`. The function points at your clone, so [updates](#updating-efcpt-ui) need no reinstall. If you later uninstall that Node version, run these lines again.
+Check with `efcpt --version`. The function points at your clone, so [updates](#updating-efcpt-ui) need no reinstall. If you later uninstall that Node version, run these lines again.
+
+- **The command used to be `efcpt-ui`.** It still works under that name: on Windows `npm link` adds both, and an `efcpt-ui` shell function you set up earlier keeps working. Add the `efcpt` function above to use the short name.
+- **Name clash:** upstream EF Core Power Tools has its own command line tool that is also called `efcpt` (`dotnet tool install ErikEJ.EFCorePowerTools.Cli`). If you installed it, whichever comes first on your `PATH` wins on Windows; in WSL the shell function always wins. Use `efcpt-ui` to be sure you get this one, or remove the dotnet tool with `dotnet tool uninstall -g ErikEJ.EFCorePowerTools.Cli`.
 
 ### 4. Connection string
 
@@ -228,7 +231,7 @@ There are two kinds, depending on where the database runs.
    - LocalDB: `Server=(localdb)\MSSQLLocalDB`.
    - If it can't reach the server, connect to the VPN and try the full name: `Server=sqlserver01.corp.example.com`.
 
-3. Check it with `efcpt-ui --list`. On a failure, efcpt-ui says what to change: no access for your account, a Kerberos or VPN problem, or the wrong server name.
+3. Check it with `efcpt --list`. On a failure, efcpt-ui says what to change: no access for your account, a Kerberos or VPN problem, or the wrong server name.
 
 **Microsoft Entra ID** (`Authentication=Active Directory Default`) is for Azure SQL Database and Azure SQL Managed Instance, with your work account. It works from Windows (cmd, PowerShell) and WSL (bash, zsh, fish).
 
@@ -256,7 +259,7 @@ There are two kinds, depending on where the database runs.
 
    For a Managed Instance, the server name looks like `yourmi.abc123def456.database.windows.net`. Copy it from the Azure portal.
 
-3. Check it with `efcpt-ui --list`.
+3. Check it with `efcpt --list`.
    - If sign-in fails, run `az login` again: sign-ins expire.
    - Your account must be a user in the database. A DBA adds it with `CREATE USER [you@company.com] FROM EXTERNAL PROVIDER`.
 
@@ -264,7 +267,7 @@ There are two kinds, depending on where the database runs.
 
 #### Environment variable instead
 
-You can also use an environment variable for one session, then add `--connection-env MY_DB` to the efcpt-ui commands:
+You can also use an environment variable for one session, then add `--connection-env MY_DB` to the efcpt commands:
 
 | Shell      | Command                                      |
 | ---------- | -------------------------------------------- |
@@ -293,18 +296,18 @@ The commands are the same in every shell. Use `\` instead of `/` in paths on Win
 ```bash
 cd /path/to/YourProject
 git checkout -b try-efcpt-ui
-efcpt-ui --import-vs efpt.config.json     # only if you used the Visual Studio extension
-efcpt-ui --list                           # read-only: the connection, the engine and what would be generated
-efcpt-ui                                  # opens the UI in your browser: pick tables and options, then Save & Generate
+efcpt --import-vs efpt.config.json     # only if you used the Visual Studio extension
+efcpt --list                           # read-only: the connection, the engine and what would be generated
+efcpt                                  # opens the UI in your browser: pick tables and options, then Save & Generate
 ```
 
 **Several configs** (for example one per database, such as `BFF/efpt.Sales.config.json` and `BFF/efpt.Hr.config.json`): import each one, then name the config with `--config`:
 
 ```bash
-efcpt-ui --import-vs BFF/efpt.Sales.config.json
-efcpt-ui --import-vs BFF/efpt.Hr.config.json
-efcpt-ui --config BFF/efcpt-config.Sales.json --list
-efcpt-ui --config BFF/efcpt-config.Sales.json
+efcpt --import-vs BFF/efpt.Sales.config.json
+efcpt --import-vs BFF/efpt.Hr.config.json
+efcpt --config BFF/efcpt-config.Sales.json --list
+efcpt --config BFF/efcpt-config.Sales.json
 ```
 
 Imported configs generate the same code as the Visual Studio extension, with the same line endings as your existing files. `git status` shows only what really changed.
@@ -314,7 +317,7 @@ Imported configs generate the same code as the Visual Studio extension, with the
 The UI is for choosing tables and options. To regenerate after the database changes, the same as **Refresh** in Visual Studio, use `--generate`. It uses the saved config, generates and exits:
 
 ```bash
-efcpt-ui --config BFF/efcpt-config.Sales.json --generate
+efcpt --config BFF/efcpt-config.Sales.json --generate
 ```
 
 To refresh every config in a project or solution with one command, save an `efcpt-refresh` command once:
@@ -324,7 +327,7 @@ To refresh every config in a project or solution with one command, save an `efcp
 function efcpt-refresh --description 'Regenerate every efcpt config below this folder'
     for c in **/efcpt-config*.json
         echo "== $c"
-        efcpt-ui --config $c --generate; or return 1
+        efcpt --config $c --generate; or return 1
     end
 end
 funcsave efcpt-refresh
@@ -335,7 +338,7 @@ funcsave efcpt-refresh
 cat >> ~/.zshrc <<'EOF'
 efcpt-refresh() {
   find . -name 'efcpt-config*.json' -not -path '*/bin/*' -not -path '*/obj/*' -not -path '*/node_modules/*' | sort |
-    while read -r c; do echo "== $c"; efcpt-ui --config "$c" --generate < /dev/null || return 1; done
+    while read -r c; do echo "== $c"; efcpt --config "$c" --generate < /dev/null || return 1; done
 }
 EOF
 exec zsh
@@ -348,7 +351,7 @@ Add-Content $PROFILE @'
 function efcpt-refresh {
   foreach ($c in Get-ChildItem -Recurse -Filter 'efcpt-config*.json' | Where-Object FullName -notmatch '\\(bin|obj|node_modules)\\') {
     Write-Host "== $($c.FullName)"
-    efcpt-ui --config $c.FullName --generate
+    efcpt --config $c.FullName --generate
     if ($LASTEXITCODE -ne 0) { return }
   }
 }
@@ -358,81 +361,47 @@ function efcpt-refresh {
 
 ```cmd
 :: cmd: no saved command, run this line from the project folder
-for /r %c in (efcpt-config*.json) do call efcpt-ui --config "%c" --generate
+for /r %c in (efcpt-config*.json) do call efcpt --config "%c" --generate
 ```
 
 Then run `efcpt-refresh` from your project or solution folder.
 
 Good to know:
 
-- **New tables:** imported configs only generate the tables you selected, as in Visual Studio. To add one, open the UI (`efcpt-ui --config ...`), click **Reload from database**, tick it and generate. To always pick up every new object, set `"refresh-object-lists": true` under `code-generation` in that config.
+- **New tables:** imported configs only generate the tables you selected, as in Visual Studio. To add one, open the UI (`efcpt --config ...`), click **Reload from database**, tick it and generate. To always pick up every new object, set `"refresh-object-lists": true` under `code-generation` in that config.
 - **Project scripts:** if your project has a `package.json`, you can save these as scripts instead. See [Using it in a project](#using-it-in-a-project).
 - **Exit codes** for scripts and CI: `0` success, `1` generation failed, `2` usage or setup problem.
 
 ### Updating efcpt-ui
 
-**Do this after new changes are pushed to this repository.** Your clone doesn't update itself. Until you pull and rebuild, `efcpt-ui` keeps running the version you built. You don't need to reinstall anything or redo step 3: the `efcpt-ui` command points at your clone, so it runs the new build straight away.
-
-To see whether there's anything new, run this in your clone:
+**Do this after new changes are pushed to this repository.** Your clone doesn't update itself. From any folder, in any shell:
 
 ```bash
-git fetch
-git log --oneline HEAD..origin/master    # empty: you're up to date
+efcpt --update
 ```
 
-To update, use the block for your shell. These commands rebuild all three engines; skip the ones you don't use.
+It pulls the latest changes and rebuilds only what changed:
 
-```bash
-# WSL: bash, zsh or fish
-cd ~/ef-core-power-tools-package
-git pull
-dotnet build src/Core/efcpt.8/efcpt.8.csproj -c Release
-dotnet build src/Core/efcpt.9/efcpt.9.csproj -c Release
-dotnet build src/Core/efcpt.10/efcpt.10.csproj -c Release
-cd packages/efcpt-ui
-npm ci
-npm run build
-```
+- the engines you have built, if their code changed
+- the npm dependencies, if they changed
+- efcpt-ui itself
 
-```cmd
-:: Windows cmd
-cd /d %USERPROFILE%\ef-core-power-tools-package
-git pull
-dotnet build src\Core\efcpt.8\efcpt.8.csproj -c Release
-dotnet build src\Core\efcpt.9\efcpt.9.csproj -c Release
-dotnet build src\Core\efcpt.10\efcpt.10.csproj -c Release
-cd packages\efcpt-ui
-npm ci
-npm run build
-```
+You don't need to reinstall anything or redo step 3. If nothing is new, it says so and stops.
 
-```powershell
-# Windows PowerShell
-cd ~\ef-core-power-tools-package
-git pull
-dotnet build src\Core\efcpt.8\efcpt.8.csproj -c Release
-dotnet build src\Core\efcpt.9\efcpt.9.csproj -c Release
-dotnet build src\Core\efcpt.10\efcpt.10.csproj -c Release
-cd packages\efcpt-ui
-npm ci
-npm run build
-```
-
-- **Cloned somewhere else?** Use that folder in the first `cd`. To find it:
-  - **WSL:** `type efcpt-ui` shows the path, `.../packages/efcpt-ui/dist/cli.js`.
-  - **Windows:** run `npm root -g`. The `efcpt-ui` entry in that folder links to your clone.
+- **The same from the clone:** `npm run update` in `packages/efcpt-ui`. Use it if `efcpt` itself is broken, for example after a build that failed halfway. `npm run update -- --force` rebuilds everything even when nothing is new.
+- **Local changes in the clone:** the update stops before touching anything and tells you to `git stash` them first.
 - **Check what you're on:** `git log -1 --oneline` in the clone.
-- **`git pull` refuses because of local changes:** run `git stash`, then `git pull` again.
-- **Run the build steps every time.** A pull alone changes nothing until you rebuild.
+- **Where is the clone?** In WSL, `type efcpt` shows the path, `.../packages/efcpt-ui/dist/cli.js`. On Windows, run `npm root -g`; the `efcpt-ui` entry in that folder links to your clone.
+- **First time with an older version that has no `--update`:** update once by hand. In the clone, run `git pull`. Then, in `packages/efcpt-ui`, run `npm ci` and `npm run build`. From then on, `efcpt --update` works.
 
 ### Troubleshooting
 
 | Message                                                                | Fix                                                                                                                                |
 | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| _No executable efcpt-ui found for current version_ (asdf)              | The project pins another Node version. Add the shell function from [step 3](#3-add-the-efcpt-ui-command).                          |
-| `efcpt-ui: command not found`                                          | WSL: add the shell function from step 3 and open a new shell. Windows: open a new window after `npm link`.                         |
+| _No executable efcpt found for current version_ (asdf)                 | The project pins another Node version. Add the shell function from [step 3](#3-add-the-efcpt-command).                             |
+| `efcpt: command not found`                                             | WSL: add the shell function from step 3 and open a new shell. Windows: open a new window after `npm link`.                         |
 | fish: _command substitutions not allowed here_                         | fish doesn't accept `(...)` as a command name. Use the step 3 function, which writes the path out.                                 |
-| PowerShell: _running scripts is disabled on this system_               | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, or type `efcpt-ui.cmd`.                                                     |
+| PowerShell: _running scripts is disabled on this system_               | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, or type `efcpt.cmd`.                                                        |
 | _Login failed_ or _network-related error_ from WSL                     | Use a SQL login or Entra ID, not Windows authentication. Turn on mirrored networking for a server on your own machine (step 4).    |
 | _Microsoft Entra ID sign-in failed_                                    | Run `az login` again, on the same side (Windows or WSL) you run efcpt-ui. Your account must be a user in the database.             |
 | _The certificate chain was issued by an authority that is not trusted_ | Add `TrustServerCertificate=True` to the connection string.                                                                        |
@@ -442,12 +411,12 @@ npm run build
 
 ## Using it in a project
 
-Run `efcpt-ui` from the project folder, or add one script per config to `package.json` if your project has one (a project can have several configs):
+Run `efcpt` from the project folder, or add one script per config to `package.json` if your project has one (a project can have several configs):
 
 ```json
 "scripts": {
-  "db:sales": "efcpt-ui --config ./Data/Sales/efcpt-config.json",
-  "db:sales:generate": "efcpt-ui --config ./Data/Sales/efcpt-config.json --generate"
+  "db:sales": "efcpt --config ./Data/Sales/efcpt-config.json",
+  "db:sales:generate": "efcpt --config ./Data/Sales/efcpt-config.json --generate"
 }
 ```
 
@@ -456,7 +425,7 @@ Run `efcpt-ui` from the project folder, or add one script per config to `package
 ### Coming from the Visual Studio extension
 
 ```bash
-efcpt-ui --import-vs efpt.config.json
+efcpt --import-vs efpt.config.json
 ```
 
 This writes `efcpt-config.json` next to `efpt.config.json` (`efpt.Sales.config.json` becomes `efcpt-config.Sales.json`) with the same selected objects and options, and leaves the original alone. The UI offers the same import. The result is the same code the extension generates: a CI test compares the two file by file.
@@ -465,7 +434,7 @@ This writes `efcpt-config.json` next to `efpt.config.json` (`efpt.Sales.config.j
 - `efpt.renaming.json` next to the config keeps working. A config specific `efpt.Sales.renaming.json` is carried over as `"efcpt-ui": { "renaming": "efpt.Sales.renaming.json" }`.
 - The connection string is not in `efpt.config.json`; see [Connection strings](#connection-strings).
 - Generated files keep the line endings of the code that is already there, so regenerating from WSL doesn't rewrite every file Visual Studio generated with Windows (CRLF) line endings. Only the files whose code changed show up in `git status`.
-- As in Visual Studio, the next steps readme (which NuGet packages to add and how to register the `DbContext`) goes to your temp folder, not into the project. efcpt-ui prints where it is. An `efcpt-readme.md` left in the project by an older version can be deleted.
+- The engine's generic next steps readme (`efcpt-readme.md`: which NuGet packages to add, how to register the `DbContext`) is deleted after each run, so it never shows up in your changes. One left in the project by an older version can be deleted too.
 - Handlebars templates and "no default constructor" are not supported outside Visual Studio. Stored procedure calls are always async. The import warns about these.
 
 ### The UI
@@ -554,7 +523,7 @@ The rules follow the engine exactly. With `refresh-object-lists` on (the default
 
 ## Engine
 
-efcpt-ui runs a .NET engine (a fork of the `efcpt` CLI with a JSON interface) matching the project's EF Core version. It looks for it in this order:
+efcpt runs a .NET engine (a fork of the `efcpt` CLI with a JSON interface) matching the project's EF Core version. It looks for it in this order:
 
 1. `--engine <path>` (`efcpt.<N>.dll` or an executable)
 2. the `EFCPT_UI_ENGINE` environment variable
@@ -568,7 +537,7 @@ The engine needs the .NET 8 runtime (EF Core 8 and 9) or the .NET 10 runtime (EF
 
 ## Options
 
-Run `efcpt-ui --help`. Exit codes: `0` success, `1` generation failed, `2` usage or setup problem.
+Run `efcpt --help`. Exit codes: `0` success, `1` generation failed, `2` usage or setup problem.
 
 ## Development
 

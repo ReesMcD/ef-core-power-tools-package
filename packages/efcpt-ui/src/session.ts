@@ -62,7 +62,7 @@ export async function resolveSession(
     if (vsConfigs.length > 0) {
       warnings.push(
         `No efcpt config yet, but found the Visual Studio extension's ${vsConfigs.map((f) => path.relative(cwd, f)).join(', ')}. ` +
-          `Convert it with: efcpt-ui --import-vs ${path.relative(cwd, vsConfigs[0]!)}`,
+          `Convert it with: efcpt --import-vs ${path.relative(cwd, vsConfigs[0]!)}`,
       );
     }
   }

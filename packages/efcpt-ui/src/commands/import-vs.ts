@@ -56,7 +56,7 @@ export async function runImportVs(context: { args: CliArgs; io: Output; cwd: str
   const relative = path.relative(cwd, target) || target;
   io.out();
   io.out('The connection string is not part of the Visual Studio config. Next:');
-  io.out(`  efcpt-ui --config ${relative} --connection-env MY_DB --list`);
-  io.out(`  efcpt-ui --config ${relative}              (the UI asks for the connection)`);
+  io.out(`  efcpt --config ${relative} --connection-env MY_DB --list`);
+  io.out(`  efcpt --config ${relative}              (the UI asks for the connection)`);
   return 0;
 }

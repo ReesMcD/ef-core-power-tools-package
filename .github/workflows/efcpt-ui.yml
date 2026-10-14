@@ -94,16 +94,17 @@ jobs:
       shell: cmd
       run: |
         cd /d "%RUNNER_TEMP%\sample"
+        call efcpt --version || exit /b 1
         call efcpt-ui --version || exit /b 1
-        call efcpt-ui --list --engine "%GITHUB_WORKSPACE%\packages\efcpt-ui\test\fixtures\fake-engine.mjs" --connection "Data Source=shop.db;Cache=Shared" || exit /b 1
+        call efcpt --list --engine "%GITHUB_WORKSPACE%\packages\efcpt-ui\test\fixtures\fake-engine.mjs" --connection "Data Source=shop.db;Cache=Shared" || exit /b 1
 
     - name: Run from PowerShell 7
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
         Set-Location "$env:RUNNER_TEMP\sample"
-        efcpt-ui --version
-        efcpt-ui --list --engine "$env:GITHUB_WORKSPACE\packages\efcpt-ui\test\fixtures\fake-engine.mjs" --connection "Data Source=shop.db;Cache=Shared"
+        efcpt --version
+        efcpt --list --engine "$env:GITHUB_WORKSPACE\packages\efcpt-ui\test\fixtures\fake-engine.mjs" --connection "Data Source=shop.db;Cache=Shared"
         if ($LASTEXITCODE -ne 0) { exit 1 }
 
     - name: Run from Windows PowerShell 5.1, including under a Restricted execution policy
@@ -111,11 +112,11 @@ jobs:
       shell: powershell
       run: |
         Set-Location "$env:RUNNER_TEMP\sample"
-        efcpt-ui --version
+        efcpt --version
         if ($LASTEXITCODE -ne 0) { exit 1 }
-        # Locked-down machines block the npm-generated efcpt-ui.ps1; the .cmd shim still works
+        # Locked-down machines block the npm-generated efcpt.ps1; the .cmd shim still works
         Set-ExecutionPolicy -Scope Process -ExecutionPolicy Restricted -Force
-        efcpt-ui.cmd --list --engine "$env:GITHUB_WORKSPACE\packages\efcpt-ui\test\fixtures\fake-engine.mjs" --connection "Data Source=shop.db;Cache=Shared"
+        efcpt.cmd --list --engine "$env:GITHUB_WORKSPACE\packages\efcpt-ui\test\fixtures\fake-engine.mjs" --connection "Data Source=shop.db;Cache=Shared"
         if ($LASTEXITCODE -ne 0) { exit 1 }
 
   e2e:

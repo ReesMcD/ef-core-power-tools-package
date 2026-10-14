@@ -15,6 +15,7 @@ export interface CliArgs {
   verbose: boolean;
   help: boolean;
   version: boolean;
+  update: boolean;
 }
 
 export class UsageError extends Error {
@@ -24,15 +25,16 @@ export class UsageError extends Error {
   }
 }
 
-export const helpText = `efcpt-ui - EF Core Power Tools UI
+export const helpText = `efcpt - EF Core Power Tools UI (efcpt-ui)
 
 Reverse engineer a database into EF Core DbContext and entity classes, driven by an efcpt-config.json.
 
 Usage:
-  efcpt-ui [--config <file>] [options]            open the UI in your browser
-  efcpt-ui --config <file> --generate [options]   generate code without the UI (for scripts and CI)
-  efcpt-ui --config <file> --list [options]       list database objects and which ones the config selects
-  efcpt-ui --import-vs <efpt.config.json>         convert a Visual Studio extension config to efcpt-config.json
+  efcpt [--config <file>] [options]            open the UI in your browser
+  efcpt --config <file> --generate [options]   generate code without the UI (for scripts and CI)
+  efcpt --config <file> --list [options]       list database objects and which ones the config selects
+  efcpt --import-vs <efpt.config.json>         convert a Visual Studio extension config to efcpt-config.json
+  efcpt --update                               update efcpt to the latest version (git pull and rebuild)
 
 Options:
   -c, --config <file>          efcpt-config.json to use. Default: the only efcpt config found in the project,
@@ -48,10 +50,13 @@ Options:
   -v, --verbose                Show the engine's progress output
   -h, --help                   Show this help
       --version                Show the version
+      --update                 Pull the latest efcpt-ui and rebuild what changed
 
 Connection string lookup order: --connection, --connection-env, EFCPT_CONNECTION, then the
 "efcpt-ui": { "connection": ... } section of the config file, which can point at an environment
 variable, a user secret, an appsettings key or a .dacpac, so no secret is stored in the config.
+
+efcpt-ui is the same command under its older name.
 
 Exit codes: 0 success, 1 generation failed, 2 usage or setup problem.`;
 
@@ -77,6 +82,7 @@ export function parseCliArgs(argv: string[]): CliArgs {
         verbose: { type: 'boolean', short: 'v', default: false },
         help: { type: 'boolean', short: 'h', default: false },
         version: { type: 'boolean', default: false },
+        update: { type: 'boolean', default: false },
       },
     });
   } catch (error) {
@@ -110,5 +116,6 @@ export function parseCliArgs(argv: string[]): CliArgs {
     verbose: values.verbose,
     help: values.help,
     version: values.version,
+    update: values.update,
   };
 }

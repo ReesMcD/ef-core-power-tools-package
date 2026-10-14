@@ -164,8 +164,12 @@ PublishScripts/
 **/packages/*
 # except build/, which is used as an MSBuild target.
 !**/packages/build/
-# The efcpt-ui npm package (packages/efcpt-ui) is source, not NuGet output
+# The efcpt-cli npm package (packages/efcpt-cli) is source, not NuGet output
+!/packages/efcpt-cli/
+# Stub that lets updates from before the rename to efcpt-cli finish the move (packages/efcpt-ui/README.md)
 !/packages/efcpt-ui/
+/packages/efcpt-ui/node_modules/
+/packages/efcpt-ui/dist/
 # Uncomment if necessary however generally it will be regenerated when needed
 #!**/packages/repositories.config
 # NuGet v3's project.json files produces more ignorable files

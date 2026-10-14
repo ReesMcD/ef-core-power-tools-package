@@ -3,9 +3,9 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <PackAsTool>true</PackAsTool>
-    <ToolCommandName>efcpt-ui-engine</ToolCommandName>
+    <ToolCommandName>efcpt-cli-engine</ToolCommandName>
     <PackageId>ReesMcD.EFCorePowerTools.Engine</PackageId>
-    <Description>Engine for EF Core Power Tools UI (efcpt-ui). Fork of the EF Core Power Tools command line tool by ErikEJ</Description>
+    <Description>Engine for EF Core Power Tools UI (efcpt-cli). Fork of the EF Core Power Tools command line tool by ErikEJ</Description>
     <PackageReadmeFile>readme.md</PackageReadmeFile>
     <PackageVersion>10.0.0</PackageVersion>
     <InformationalVersion>10.0.0</InformationalVersion>

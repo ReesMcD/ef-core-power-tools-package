@@ -198,6 +198,8 @@ describe.runIf(engine && mssql)('SQL Server', () => {
     <Nullable>enable</Nullable>
     <RootNamespace>Contoso.Tricky</RootNamespace>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- The generated code must compile without warnings; advisories for the EF Core packages' own dependencies are not about that -->
+    <WarningsNotAsErrors>NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="${version}" />

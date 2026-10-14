@@ -465,6 +465,7 @@ This writes `efcpt-config.json` next to `efpt.config.json` (`efpt.Sales.config.j
 - `efpt.renaming.json` next to the config keeps working. A config specific `efpt.Sales.renaming.json` is carried over as `"efcpt-ui": { "renaming": "efpt.Sales.renaming.json" }`.
 - The connection string is not in `efpt.config.json`; see [Connection strings](#connection-strings).
 - Generated files keep the line endings of the code that is already there, so regenerating from WSL doesn't rewrite every file Visual Studio generated with Windows (CRLF) line endings. Only the files whose code changed show up in `git status`.
+- As in Visual Studio, the next steps readme (which NuGet packages to add and how to register the `DbContext`) goes to your temp folder, not into the project. efcpt-ui prints where it is. An `efcpt-readme.md` left in the project by an older version can be deleted.
 - Handlebars templates and "no default constructor" are not supported outside Visual Studio. Stored procedure calls are always async. The import warns about these.
 
 ### The UI

@@ -76,7 +76,8 @@ describe('updating efcpt-ui', () => {
     expect(result.stdout).toContain('v2: better things');
     expect(result.stdout).toContain('No engines are built');
     expect(result.stdout).not.toContain('Installing npm dependencies');
-    expect(await readFile(path.join(installed, 'index.js'), 'utf8')).toBe('// v2\n');
+    // Git may check the file out with CRLF line endings (core.autocrlf on Windows)
+    expect(await readFile(path.join(installed, 'index.js'), 'utf8')).toMatch(/^\/\/ v2\r?\n$/);
     expect(await readFile(path.join(installed, 'dist', 'cli.js'), 'utf8')).toBe('built');
   });
 

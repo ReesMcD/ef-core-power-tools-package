@@ -131,7 +131,7 @@ We never write a plain-text connection string into `efcpt-config.json`.
 4. ~~**UI stack.**~~ **Decided and built: Vite + React + TypeScript.**
 5. ~~**Config file naming.**~~ **Decided: `efcpt-config.json` only**, plus an importer for the VS format (`efcpt --import-vs`, X2). Imported configs generate the same code as the extension (R8).
 6. ~~**Minimum Node version.**~~ **Decided: Node 22 or newer.** Node 20 reached end of life in April 2026, and the test tooling (Vitest 5) needs 22.12+.
-7. **Keeping up with upstream.** Open (U1). The fork is based on upstream `b5312dc` (19 Aug 2026), and upstream keeps moving (11 commits ahead on 14 Oct 2026, with three small conflicts in the engine CLI). Recommendation: merge upstream through a PR so CI, including the parity test against the VS extension's generator, checks it; optionally a scheduled workflow that opens that PR.
+7. **Keeping up with upstream.** Merged by hand through a PR (U1): the fork was based on upstream `b5312dc` (19 Aug 2026) and merged upstream `f190200` (14 Oct 2026), with three small conflicts in the engine CLI. Still open: whether a scheduled workflow should open that PR.
 
 ## Success criteria
 

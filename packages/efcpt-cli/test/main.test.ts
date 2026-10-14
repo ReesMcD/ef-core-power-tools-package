@@ -144,6 +144,25 @@ describe('efcpt-cli main', () => {
     expect(io.stdout.join('\n')).not.toContain('Next steps');
   });
 
+  it('leaves line endings to the engine when the config sets code-generation.file-line-endings', async () => {
+    const dir = await copySample();
+    await mkdir(path.join(dir, 'Models'));
+    await writeFile(
+      path.join(dir, 'Models', 'Customer.cs'),
+      'namespace Sample;\r\n\r\npublic class Customer\r\n{\r\n}\r\n',
+    );
+    const configPath = path.join(dir, 'efcpt-config.json');
+    const config = JSON.parse(await readFile(configPath, 'utf8')) as Record<string, Record<string, unknown>>;
+    config['code-generation']!['file-line-endings'] = 'lf';
+    await writeFile(configPath, JSON.stringify(config));
+    process.env['FAKE_ENGINE_MODE'] = 'write';
+    const io = capture();
+    const args = ['--generate', '--engine', fakeEngine, '--connection', 'Data Source=x.db'];
+    expect(await main(args, await env(), io, dir)).toBe(0);
+    expect(io.stdout.join('\n')).not.toContain('Line endings');
+    expect(await readFile(path.join(dir, 'Models', 'Customer.cs'), 'utf8')).not.toContain('\r');
+  });
+
   it('leaves line endings alone when there is no existing code', async () => {
     const dir = await copySample();
     process.env['FAKE_ENGINE_MODE'] = 'write';

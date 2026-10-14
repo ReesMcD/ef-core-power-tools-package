@@ -105,7 +105,7 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 
 ## Upstream
 
-- [ ] **U1** Decide how to keep up with upstream `ErikEJ/EFCorePowerTools` (fork base `b5312dc`, 19 Aug 2026). Recommended: merge upstream via a PR so CI and the VS parity test check it, optionally opened by a scheduled workflow. Our changes to upstream code are small (JSON/list-objects interface in `src/Core/efcpt.8`, `CliConfig` extension data, a one-line fix in `ProcedureScaffolder.cs`), the rest is new files
+- [~] **U1** Keep up with upstream `ErikEJ/EFCorePowerTools`. Merged upstream `f190200` (14 Oct 2026, 11 commits: vector columns, PostgreSQL excludedIndexes, line ending and charset options, non-zero exit on failed scaffolding, October dependencies) through a PR; conflicts in `Program.cs`, `ScaffoldHostedService.cs` and the VSIX file count. The three real configs still generate identical code to the VS generator. Still open: a scheduled workflow that opens the merge PR. Before that, the fork base was `b5312dc` (19 Aug 2026). Recommended: merge upstream via a PR so CI and the VS parity test check it, optionally opened by a scheduled workflow. Our changes to upstream code are small (JSON/list-objects interface in `src/Core/efcpt.8`, `CliConfig` extension data, a one-line fix in `ProcedureScaffolder.cs`), the rest is new files
 
 ## Phase 5: Stretch (unordered)
 

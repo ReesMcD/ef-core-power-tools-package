@@ -1,6 +1,6 @@
 # State of the Project
 
-_Snapshot as of 2026-09-24, fork head `b5312dc` ("Enable nullable on tools CLI (#3479)")._
+_Snapshot as of 2026-09-24, fork head `b5312dc` ("Enable nullable on tools CLI (#3479)"), taken before any fork work started. It describes upstream as it was then; for what the fork has added since, see [TASKS.md](TASKS.md) and [packages/efcpt-ui](../packages/efcpt-ui/README.md)._
 
 ## Summary
 
@@ -48,12 +48,12 @@ Around 400 C# files, 24 XAML files, and 4 GitHub workflows (`vsix.yml` on Window
 
 The VS extension **does not load EF Core in-process.** `EfRevEngLauncher` (`src/GUI/Shared/Handlers/ReverseEngineer/EfRevEngLauncher.cs`) unzips `efreveng{80,90,100}.exe.zip` into a temp folder and runs `dotnet efreveng100.dll ...`. It uses a simple text protocol:
 
-| Invocation | Purpose | Output |
-| --- | --- | --- |
-| `efreveng <mergeDacpacs> <dbTypeInt> "<connStr>" ["schema1,schema2"]` | List DB objects | `Result:\n<JSON List<TableModel>>` |
-| `efreveng <path-to-options.json>` | Generate code from `ReverseEngineerCommandOptions` JSON | `Result:\n<JSON ReverseEngineerResult>` |
-| `efreveng dgml / erdiagram / dabbuilder / dacpacreport ...` | Diagrams, Data API Builder, reports | `Result:\n<file path>` |
-| any failure | | `Error:\n<message>` |
+| Invocation                                                            | Purpose                                                 | Output                                  |
+| --------------------------------------------------------------------- | ------------------------------------------------------- | --------------------------------------- |
+| `efreveng <mergeDacpacs> <dbTypeInt> "<connStr>" ["schema1,schema2"]` | List DB objects                                         | `Result:\n<JSON List<TableModel>>`      |
+| `efreveng <path-to-options.json>`                                     | Generate code from `ReverseEngineerCommandOptions` JSON | `Result:\n<JSON ReverseEngineerResult>` |
+| `efreveng dgml / erdiagram / dabbuilder / dacpacreport ...`           | Diagrams, Data API Builder, reports                     | `Result:\n<file path>`                  |
+| any failure                                                           |                                                         | `Error:\n<message>`                     |
 
 **This is the seam the whole standalone plan relies on.** The GUI already talks to the engine only through JSON over a process boundary.
 
@@ -82,14 +82,14 @@ The VS extension **does not load EF Core in-process.** `EfRevEngLauncher` (`src/
 
 30 files reference VS APIs. Grouped by what they're for:
 
-| Area | Files | Standalone replacement |
-| --- | --- | --- |
-| Project model (DTE `Project`, add files, root namespace, target framework) | `ProjectExtensions.cs`, `ProjectModel.cs`, `VisualStudioAccess.cs` | Read the `.csproj` with MSBuild XML or `dotnet msbuild -getProperty` |
-| DB connections (Server Explorer / DDEX, credential store) | `VsDataHelper.cs`, `CredentialStore.cs`, `DatabaseConnectionModel.cs`, `PickServerDatabaseViewModel.cs` | Connection string from CLI flag, env var, user-secrets or appsettings, or entered in the UI |
-| SQL project (.sqlproj) builds | `SqlProjHelper.cs` | `dotnet build` of the .sqlproj, or point at a built `.dacpac` |
-| NuGet install into project | `NuGetHelper.cs`, parts of `ReverseEngineerHandler.cs` | Print or run `dotnet add package` |
-| UI plumbing (threading, dialogs, theming, status bar, telemetry, options pages) | `VSHelper.cs`, `VsThemes.cs`, `Telemetry.cs`, `AdvancedOptions.cs`, `OptionsProvider.cs` | Not needed; web UI plus config file |
-| Orchestration | `ReverseEngineerHandler.cs`, `RevEngWizardHandler.cs`, `WizardDataViewModel.cs`, `CliHandler.cs` | New orchestrator in the npm package |
+| Area                                                                            | Files                                                                                                   | Standalone replacement                                                                      |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Project model (DTE `Project`, add files, root namespace, target framework)      | `ProjectExtensions.cs`, `ProjectModel.cs`, `VisualStudioAccess.cs`                                      | Read the `.csproj` with MSBuild XML or `dotnet msbuild -getProperty`                        |
+| DB connections (Server Explorer / DDEX, credential store)                       | `VsDataHelper.cs`, `CredentialStore.cs`, `DatabaseConnectionModel.cs`, `PickServerDatabaseViewModel.cs` | Connection string from CLI flag, env var, user-secrets or appsettings, or entered in the UI |
+| SQL project (.sqlproj) builds                                                   | `SqlProjHelper.cs`                                                                                      | `dotnet build` of the .sqlproj, or point at a built `.dacpac`                               |
+| NuGet install into project                                                      | `NuGetHelper.cs`, parts of `ReverseEngineerHandler.cs`                                                  | Print or run `dotnet add package`                                                           |
+| UI plumbing (threading, dialogs, theming, status bar, telemetry, options pages) | `VSHelper.cs`, `VsThemes.cs`, `Telemetry.cs`, `AdvancedOptions.cs`, `OptionsProvider.cs`                | Not needed; web UI plus config file                                                         |
+| Orchestration                                                                   | `ReverseEngineerHandler.cs`, `RevEngWizardHandler.cs`, `WizardDataViewModel.cs`, `CliHandler.cs`        | New orchestrator in the npm package                                                         |
 
 **Already portable and reusable as reference:** `RevEng.Shared` (options, `TableModel`, `CliConfig`, `CliConfigMapper`, `ExclusionFilter`, `T4Helper`, `Providers`), and the logic in `PickTablesViewModel`, `ObjectTreeViewModel`, `ModelingOptionsModel` and `TableInformationViewModel`. Those view models are plain C# over MvvmLight, so they spell out the behaviour a new UI needs to match.
 

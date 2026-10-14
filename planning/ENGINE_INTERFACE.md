@@ -6,10 +6,10 @@ How the npm package talks to the .NET engine, plus the rules the UI has to follo
 
 Always spawn **without a shell** (`spawn('dotnet', [engineDll, ...args])`), so connection strings are passed through untouched.
 
-| Purpose | Arguments | Side effects |
-| --- | --- | --- |
-| Discover objects | `<conn> [provider] --list-objects --json [-i config]` | None. Doesn't write the config or any code. `-i` is read only for `merge-dacpacs` |
-| Generate | `<conn> [provider] -i <config> [-o <outdir>] [-r <renaming>] --json` | Writes code, readme, T4 templates. **Rewrites the config** if the file doesn't exist yet or `refresh-object-lists` is `true` |
+| Purpose          | Arguments                                                            | Side effects                                                                                                                 |
+| ---------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Discover objects | `<conn> [provider] --list-objects --json [-i config]`                | None. Doesn't write the config or any code. `-i` is read only for `merge-dacpacs`                                            |
+| Generate         | `<conn> [provider] -i <config> [-o <outdir>] [-r <renaming>] --json` | Writes code, readme, T4 templates. **Rewrites the config** if the file doesn't exist yet or `refresh-object-lists` is `true` |
 
 - stdout: exactly **one line** of JSON. stderr: human-readable progress (can be streamed to the UI log).
 - Exit code: `0` success, `1` failure. On failure there's still a JSON document with `success: false` and `errors`.
@@ -67,12 +67,12 @@ Also observed: when stdout is **redirected** (not a terminal), the normal human 
 
 ## Engine size (task F6), measured 2026-09-24
 
-| Build | On disk | gzipped |
-| --- | --- | --- |
-| efcpt.8, framework-dependent, all platforms and languages | 276 MB | 83 MB |
-| efcpt.9, same | 278 MB | 84 MB |
-| efcpt.10, same | 261 MB | 76 MB |
-| All three together | — | 243 MB |
-| efcpt.10, `-r linux-x64 -p:SatelliteResourceLanguages=en` | 123 MB | 42 MB |
+| Build                                                     | On disk | gzipped |
+| --------------------------------------------------------- | ------- | ------- |
+| efcpt.8, framework-dependent, all platforms and languages | 276 MB  | 83 MB   |
+| efcpt.9, same                                             | 278 MB  | 84 MB   |
+| efcpt.10, same                                            | 261 MB  | 76 MB   |
+| All three together                                        | —       | 243 MB  |
+| efcpt.10, `-r linux-x64 -p:SatelliteResourceLanguages=en` | 123 MB  | 42 MB   |
 
 The biggest parts are 13 satellite language folders (74 MB), native `runtimes/` for every platform (104 MB), and `libmsalruntime.so` (37 MB, Azure AD auth via SqlClient). The trimmed build passes the full smoke test. See PLAN AD-4 for what this means for distribution.

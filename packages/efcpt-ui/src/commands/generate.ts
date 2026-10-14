@@ -1,5 +1,4 @@
-import { copyFile, mkdir, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { defaultFormat, loadConfig, saveConfig } from '../config/io.js';
 import { completeNames, createConfigTemplate } from '../config/template.js';
@@ -72,30 +71,17 @@ function configuredOutputFolders(session: Session): string[] {
 }
 
 /**
- * The engine writes its next steps (efcpt-readme.md) into the project. Visual Studio writes them to the temp
- * folder instead, so they never show up in the project's changes; do the same. One file per config.
+ * The engine writes generic next steps (efcpt-readme.md: NuGet packages, DbContext registration) into the
+ * project on every run. They are the same each time and only clutter the project's changes, so delete them.
  */
-async function moveReadmeOutOfProject(readmePath: string, session: Session): Promise<string> {
+async function removeReadme(readmePath: string, session: Session): Promise<void> {
   const relative = path.relative(session.project.projectDir, readmePath);
-  if (relative.startsWith('..') || path.isAbsolute(relative)) return readmePath;
-  const target = path.join(
-    tmpdir(),
-    'efcpt-ui',
-    `${path.basename(session.project.projectPath, path.extname(session.project.projectPath))}.${path.basename(session.configPath, '.json')}.readme.md`,
-  );
-  try {
-    await mkdir(path.dirname(target), { recursive: true });
-    await copyFile(readmePath, target);
-    await rm(readmePath, { force: true });
-    return target;
-  } catch {
-    return readmePath;
-  }
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return;
+  await rm(readmePath, { force: true }).catch(() => undefined);
 }
 
 /**
- * Runs the engine, then tidies up like Visual Studio does: the next steps readme moves out of the project, and
- * the generated files get the line endings the existing generated code uses (or the config's
+ * Runs the engine, then tidies up: the engine's next steps readme is deleted, and the generated files get the line endings the existing generated code uses (or the config's
  * "efcpt-ui": { "line-endings": "crlf" | "lf" }), so regenerating from WSL doesn't change every file that
  * Visual Studio generated on Windows.
  */
@@ -112,7 +98,10 @@ export async function generateInProject(
   const started = Date.now() - 2000;
 
   const doc = await generate(engine, generateRequest(session, connection), options);
-  if (doc.success && doc.readmePath) doc.readmePath = await moveReadmeOutOfProject(doc.readmePath, session);
+  if (doc.readmePath) {
+    await removeReadme(doc.readmePath, session);
+    delete doc.readmePath;
+  }
   if (!doc.success || !ending) return { doc };
 
   const reported = [

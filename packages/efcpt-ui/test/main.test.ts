@@ -39,7 +39,7 @@ describe('efcpt-ui main', () => {
   it('prints help and version', async () => {
     const io = capture();
     expect(await main(['--help'], {}, io)).toBe(0);
-    expect(io.stdout[0]).toContain('efcpt-ui - EF Core Power Tools UI');
+    expect(io.stdout[0]).toContain('efcpt - EF Core Power Tools UI');
 
     const version = capture();
     expect(await main(['--version'], {}, version)).toBe(0);
@@ -134,18 +134,14 @@ describe('efcpt-ui main', () => {
     expect(await readFile(path.join(dir, 'Models', 'Customer.cs'), 'utf8')).not.toContain('\r');
   });
 
-  it('moves the next steps readme out of the project, as Visual Studio does', async () => {
+  it("deletes the engine's next steps readme instead of leaving it in the project", async () => {
     const dir = await copySample();
     process.env['FAKE_ENGINE_MODE'] = 'write';
     const io = capture();
     const args = ['--generate', '--engine', fakeEngine, '--connection', 'Data Source=x.db'];
     expect(await main(args, await env(), io, dir)).toBe(0);
     await expect(access(path.join(dir, 'efcpt-readme.md'))).rejects.toThrow();
-    const line = io.stdout.find((l) => l.startsWith('Next steps: '));
-    const moved = line!.slice('Next steps: '.length);
-    expect(moved.startsWith(tmpdir())).toBe(true);
-    expect(path.basename(moved)).toBe('Sample.efcpt-config.readme.md');
-    expect(await readFile(moved, 'utf8')).toBe('# Next steps\n');
+    expect(io.stdout.join('\n')).not.toContain('Next steps');
   });
 
   it('leaves line endings alone when there is no existing code', async () => {

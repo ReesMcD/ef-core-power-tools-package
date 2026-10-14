@@ -1,4 +1,6 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { helpText, parseCliArgs, UsageError } from './args.js';
 import { runGenerate } from './commands/generate.js';
 import { runImportVs } from './commands/import-vs.js';
@@ -17,6 +19,17 @@ import { resolveSession } from './session.js';
 function packageVersion(): string {
   const text = readFileSync(new URL('../package.json', import.meta.url), 'utf8');
   return (JSON.parse(text) as { version: string }).version;
+}
+
+/** Runs scripts/update.mjs, which pulls this checkout and rebuilds what changed. */
+function runUpdate(io: Output): number {
+  const script = fileURLToPath(new URL('../scripts/update.mjs', import.meta.url));
+  const result = spawnSync(process.execPath, [script], { stdio: 'inherit' });
+  if (result.error) {
+    io.err(`error: could not run ${script}: ${result.error.message}`);
+    return 1;
+  }
+  return result.status ?? 1;
 }
 
 const setupErrors = [
@@ -48,6 +61,7 @@ export async function main(
       io.out(packageVersion());
       return 0;
     }
+    if (args.update) return runUpdate(io);
 
     if (args.importVs !== undefined) return await runImportVs({ args, io, cwd });
 

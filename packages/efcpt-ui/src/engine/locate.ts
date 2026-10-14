@@ -152,6 +152,6 @@ export async function locateEngine(options: LocateOptions): Promise<Engine> {
     `No engine found for EF Core ${options.efVersion}.${toolMismatch}\n` +
       `Engine downloads are not available yet. Build the engine from this repository and point efcpt-ui at it:\n` +
       `  dotnet build ${project} -c Release\n` +
-      `  efcpt-ui --engine <path to efcpt.${options.efVersion}.dll> ...   (or set ${engineEnvVar})`,
+      `  efcpt --engine <path to efcpt.${options.efVersion}.dll> ...   (or set ${engineEnvVar})`,
   );
 }

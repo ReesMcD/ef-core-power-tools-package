@@ -38,18 +38,18 @@ npm run db:sales
 
 ## In scope (v1)
 
-| Area | Requirement |
-| --- | --- |
-| Launch | `npx efcpt-ui [--config <path>] [--project <csproj>] [--connection <str> \| --connection-env <VAR>] [--port <n>] [--no-open] [--generate]` |
-| Multiple configs | If `--config` is left out, find all `efcpt-config*.json` / `*.efcpt.json` files under the project and let the user pick one in the UI (the same idea as the VS "Pick config" dialog) |
-| Object selection | Tree grouped by type (tables, views, stored procedures, functions) then schema. Tri-state checkboxes, search/filter, select all/none. Selection saved as the `exclude` flags in the config. Existing wildcard `exclusionWildcard` entries are kept |
-| Column/index exclusion | Expand a table to exclude single columns or indexes. The config already supports this (`excludedColumns`, `excludedIndexes`) |
-| Settings | Form covering the `efcpt-config.json` schema: `names`, `file-layout`, `code-generation`, `type-mappings`, `replacements`. Tooltips come from the schema/sample docs |
-| Generation | Runs the engine for the right EF Core version, streams progress, and shows generated paths, warnings and errors |
-| Providers | Everything `efcpt` supports: SQL Server, `.dacpac`, PostgreSQL, SQLite, MySQL, Oracle, Firebird, Snowflake |
-| NuGet guidance | After generating, list the provider packages the project is missing and offer to run `dotnet add package` |
-| Cross-platform | Windows, macOS, Linux |
-| Config compatibility | The files we write must stay valid for the stock `efcpt` CLI (no breaking format changes) |
+| Area                   | Requirement                                                                                                                                                                                                                                        |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Launch                 | `npx efcpt-ui [--config <path>] [--project <csproj>] [--connection <str> \| --connection-env <VAR>] [--port <n>] [--no-open] [--generate]`                                                                                                         |
+| Multiple configs       | If `--config` is left out, find all `efcpt-config*.json` / `*.efcpt.json` files under the project and let the user pick one in the UI (the same idea as the VS "Pick config" dialog)                                                               |
+| Object selection       | Tree grouped by type (tables, views, stored procedures, functions) then schema. Tri-state checkboxes, search/filter, select all/none. Selection saved as the `exclude` flags in the config. Existing wildcard `exclusionWildcard` entries are kept |
+| Column/index exclusion | Expand a table to exclude single columns or indexes. The config already supports this (`excludedColumns`, `excludedIndexes`)                                                                                                                       |
+| Settings               | Form covering the `efcpt-config.json` schema: `names`, `file-layout`, `code-generation`, `type-mappings`, `replacements`. Tooltips come from the schema/sample docs                                                                                |
+| Generation             | Runs the engine for the right EF Core version, streams progress, and shows generated paths, warnings and errors                                                                                                                                    |
+| Providers              | Everything `efcpt` supports: SQL Server, `.dacpac`, PostgreSQL, SQLite, MySQL, Oracle, Firebird, Snowflake                                                                                                                                         |
+| NuGet guidance         | After generating, list the provider packages the project is missing and offer to run `dotnet add package`                                                                                                                                          |
+| Cross-platform         | Windows, macOS, Linux                                                                                                                                                                                                                              |
+| Config compatibility   | The files we write must stay valid for the stock `efcpt` CLI (no breaking format changes)                                                                                                                                                          |
 
 ## Out of scope (v1)
 
@@ -124,11 +124,14 @@ We never write a plain-text connection string into `efcpt-config.json`.
 1. ~~**Package and command name.**~~ **Decided (2026-09-24):**
    - npm package and command: **`efcpt-ui`** (unscoped, free on npm as of 2026-09-24). Display name "EF Core Power Tools UI", credited as a fork of ErikEJ's EF Core Power Tools.
    - Engine (our `efcpt` build): package **`ReesMcD.EFCorePowerTools.Engine`**, dotnet-tool command **`efcpt-ui-engine`**. Neither clashes with the official `ErikEJ.EFCorePowerTools.Cli` / `efcpt`.
+   - **Changed (2026-10-14):** the command is now **`efcpt`**, shorter to type for the team; `efcpt-ui` stays as an alias and the npm package keeps the name `efcpt-ui`. This does clash with the official `efcpt` dotnet tool if someone has both installed; the README explains which one wins and that `efcpt-ui` always means this one.
 2. **Engine distribution.** Options: (a) require the user to install our fork's `efcpt` as a dotnet tool, (b) ship prebuilt engine binaries inside the npm package, (c) download on first run. **Measured:** bundling all three engines is 243 MB gzipped, so (b) is out. Recommendation: **(c)**, a trimmed ~42 MB engine for the one EF version and platform needed, with (a) as the offline fallback. See PLAN AD-4.
-3. ~~**Upstream contribution.**~~ **Decided: all work stays in the fork** (`ReesMcD/ef-core-power-tools-package`). We don't open PRs against or publish to `ErikEJ/EFCorePowerTools`. We only *pull* upstream changes into the fork. Our engine is built and shipped from the fork (see task F8).
-4. **UI stack.** Recommendation: Vite + React + TypeScript (largest ecosystem, tree/form components readily available). Svelte would also be fine.
-5. **Config file naming.** Should we support `efpt.*config.json` (VS format) in v1 or only `efcpt-config.json`? Recommendation: `efcpt-config.json` only in v1, with an importer as a stretch goal.
+   - **For now (2026-10):** the tool is only used on the team, without a package registry. Everyone installs from a clone and builds the engines there; efcpt-ui finds engines built in its checkout, and `efcpt --update` pulls and rebuilds what changed. Downloads (c) stay planned for a public release (R5, X6).
+3. ~~**Upstream contribution.**~~ **Decided: all work stays in the fork** (`ReesMcD/ef-core-power-tools-package`). We don't open PRs against or publish to `ErikEJ/EFCorePowerTools`. We only _pull_ upstream changes into the fork. Our engine is built and shipped from the fork (see task F8).
+4. ~~**UI stack.**~~ **Decided and built: Vite + React + TypeScript.**
+5. ~~**Config file naming.**~~ **Decided: `efcpt-config.json` only**, plus an importer for the VS format (`efcpt --import-vs`, X2). Imported configs generate the same code as the extension (R8).
 6. ~~**Minimum Node version.**~~ **Decided: Node 22 or newer.** Node 20 reached end of life in April 2026, and the test tooling (Vitest 5) needs 22.12+.
+7. **Keeping up with upstream.** Open (U1). The fork is based on upstream `b5312dc` (19 Aug 2026), and upstream keeps moving (11 commits ahead on 14 Oct 2026, with three small conflicts in the engine CLI). Recommendation: merge upstream through a PR so CI, including the parity test against the VS extension's generator, checks it; optionally a scheduled workflow that opens that PR.
 
 ## Success criteria
 

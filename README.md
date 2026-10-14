@@ -14,14 +14,16 @@
 > In short: install .NET 10, Node 22+ and git, then clone this repository, build the engine and efcpt-ui, and run it in your project:
 >
 > ```bash
-> efcpt-ui --import-vs efpt.config.json     # if you used the Visual Studio extension
-> efcpt-ui                                  # pick tables and options in your browser
-> efcpt-ui --config efcpt-config.json --generate   # later: refresh without the UI
+> efcpt --import-vs efpt.config.json     # if you used the Visual Studio extension
+> efcpt                                  # pick tables and options in your browser
+> efcpt --config efcpt-config.json --generate   # later: refresh without the UI
+> efcpt --update                         # after new changes are pushed here
 > ```
 >
 > - The connection string is read from the project's user secrets, like your app does. Other options are in [Connection strings](packages/efcpt-ui/README.md#connection-strings).
 > - Run it on a branch: generating overwrites the output folder.
-> - **After new changes are pushed here,** update your clone: `git pull`, rebuild the engine, then `npm ci` and `npm run build` in `packages/efcpt-ui`. The commands for each shell are in [Updating efcpt-ui](packages/efcpt-ui/README.md#updating-efcpt-ui).
+> - **After new changes are pushed here,** run `efcpt --update`: it pulls and rebuilds what changed. See [Updating efcpt-ui](packages/efcpt-ui/README.md#updating-efcpt-ui).
+> - The command is `efcpt`; the older name `efcpt-ui` still works.
 >
 > Everything below is the original EF Core Power Tools README.
 

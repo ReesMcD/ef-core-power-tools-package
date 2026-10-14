@@ -1,6 +1,6 @@
 # State of the Project
 
-_Snapshot as of 2026-09-24, fork head `b5312dc` ("Enable nullable on tools CLI (#3479)"), taken before any fork work started. It describes upstream as it was then; for what the fork has added since, see [TASKS.md](TASKS.md) and [packages/efcpt-ui](../packages/efcpt-ui/README.md)._
+_Snapshot as of 2026-09-24, fork head `b5312dc` ("Enable nullable on tools CLI (#3479)"), taken before any fork work started. It describes upstream as it was then; for what the fork has added since, see [TASKS.md](TASKS.md) and [packages/efcpt-cli](../packages/efcpt-cli/README.md)._
 
 ## Summary
 

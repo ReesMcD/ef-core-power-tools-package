@@ -76,8 +76,8 @@ jobs:
         mkdir "$RUNNER_TEMP/consumer" && cd "$RUNNER_TEMP/consumer"
         npm init -y > /dev/null
         npm install --no-audit --no-fund "$RUNNER_TEMP"/efcpt-cli-*.tgz
-        npx efcpt-cli --version
-        npx efcpt-cli --help > /dev/null
+        npx efcpt --version
+        npx efcpt --help > /dev/null
 
     # Installed globally, as `npm link` or `npm i -g` would, then run from each Windows shell against the
     # sample project (with the fake engine): config discovery, project reading and a connection string with
@@ -95,7 +95,6 @@ jobs:
       run: |
         cd /d "%RUNNER_TEMP%\sample"
         call efcpt --version || exit /b 1
-        call efcpt-cli --version || exit /b 1
         call efcpt --list --engine "%GITHUB_WORKSPACE%\packages\efcpt-cli\test\fixtures\fake-engine.mjs" --connection "Data Source=shop.db;Cache=Shared" || exit /b 1
 
     - name: Run from PowerShell 7

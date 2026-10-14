@@ -1,6 +1,8 @@
-# efcpt-cli: EF Core Power Tools UI
+# efcpt-cli: EF Core Power Tools without Visual Studio
 
-Reverse engineer a database into EF Core `DbContext` and entity classes from any .NET project, driven by an `efcpt-config.json`. No Visual Studio needed. The command is `efcpt` (or `efcpt-cli`, its older name).
+Reverse engineer a database into EF Core `DbContext` and entity classes from any .NET project, driven by an `efcpt-config.json`. No Visual Studio needed. The command is `efcpt`: it opens a browser UI to pick tables and options, or generates without it.
+
+efcpt-cli used to be called efcpt-ui. If you installed it under that name, `efcpt-ui --update` moves you over: see [Coming from efcpt-ui](#coming-from-efcpt-ui).
 
 This is a fork of [EF Core Power Tools](https://github.com/ErikEJ/EFCorePowerTools) by ErikEJ (MIT). It is not the official tool.
 
@@ -189,8 +191,8 @@ printf "function efcpt\n    '%s' '%s' \$argv\nend\n" (command -q asdf; and asdf 
 
 Check with `efcpt --version`. The function points at your clone, so [updates](#updating-efcpt-cli) need no reinstall. If you later uninstall that Node version, run these lines again.
 
-- **The command used to be `efcpt-cli`.** It still works under that name: on Windows `npm link` adds both, and an `efcpt-cli` shell function you set up earlier keeps working. Add the `efcpt` function above to use the short name.
-- **Name clash:** upstream EF Core Power Tools has its own command line tool that is also called `efcpt` (`dotnet tool install ErikEJ.EFCorePowerTools.Cli`). If you installed it, whichever comes first on your `PATH` wins on Windows; in WSL the shell function always wins. Use `efcpt-cli` to be sure you get this one, or remove the dotnet tool with `dotnet tool uninstall -g ErikEJ.EFCorePowerTools.Cli`.
+- **Set up under the old name `efcpt-ui`?** See [Coming from efcpt-ui](#coming-from-efcpt-ui).
+- **Name clash:** upstream EF Core Power Tools has its own command line tool that is also called `efcpt` (`dotnet tool install ErikEJ.EFCorePowerTools.Cli`). If you installed it, whichever comes first on your `PATH` wins on Windows; in WSL the shell function always wins. If you need upstream's tool too, run this one through its full path (`type efcpt` shows it), or remove the dotnet tool with `dotnet tool uninstall -g ErikEJ.EFCorePowerTools.Cli`.
 
 ### 4. Connection string
 
@@ -392,23 +394,42 @@ You don't need to reinstall anything or redo step 3. If nothing is new, it says 
 - **Local changes in the clone:** the update stops before touching anything and tells you to `git stash` them first.
 - **Check what you're on:** `git log -1 --oneline` in the clone.
 - **Where is the clone?** In WSL, `type efcpt` shows the path, `.../packages/efcpt-cli/dist/cli.js`. On Windows, run `npm root -g`; the `efcpt-cli` entry in that folder links to your clone.
-- **First time with an older version that has no `--update`:** update once by hand. In the clone, run `git pull`. Then, in `packages/efcpt-cli`, run `npm ci` and `npm run build`. From then on, `efcpt --update` works.
+- **First time with an older version that has no `--update`:** update once by hand. In the clone, run `git pull`. Then run `node packages/efcpt-cli/scripts/update.mjs`. From then on, `efcpt --update` works.
+
+### Coming from efcpt-ui
+
+efcpt-cli used to be called efcpt-ui, in `packages/efcpt-ui`, with the command `efcpt-ui`. To move over, run the update the way you have it set up:
+
+```bash
+efcpt-ui --update
+```
+
+The update builds efcpt-cli and moves your setup over:
+
+- **Shell function:** your `efcpt-ui` function in fish, `.bashrc` or `.zshrc` becomes `efcpt` and points at `packages/efcpt-cli`.
+- **Global link:** a global `efcpt-ui` npm link is replaced with `efcpt`.
+
+Open a new shell afterwards. From then on the command is `efcpt`, and `efcpt-ui` no longer exists.
+
+- **Configs need no changes.** An `"efcpt-ui": { ... }` section is still read, and becomes `"efcpt-cli"` the next time efcpt writes it. So does `EFCPT_UI_ENGINE`.
+- **If your `efcpt-ui` has no `--update` yet:** in the clone, run `git pull`, then `node packages/efcpt-cli/scripts/update.mjs`. It does the same move.
+- **`packages/efcpt-ui`:** after the update, that folder only holds a small stub that lets older updates finish the move, plus their leftover build output. It will be removed from the repository later.
 
 ### Troubleshooting
 
-| Message                                                                                                                                     | Fix                                                                                                                                                                                                                                     |
-| ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| _No executable efcpt found for current version_ (asdf)                                                                                      | The project pins another Node version. Add the shell function from [step 3](#3-add-the-efcpt-command).                                                                                                                                  |
-| `efcpt: command not found`                                                                                                                  | WSL: add the shell function from step 3 and open a new shell. Windows: open a new window after `npm link`.                                                                                                                              |
-| fish: _command substitutions not allowed here_                                                                                              | fish doesn't accept `(...)` as a command name. Use the step 3 function, which writes the path out.                                                                                                                                      |
-| PowerShell: _running scripts is disabled on this system_                                                                                    | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, or type `efcpt.cmd`.                                                                                                                                                             |
-| _Login failed_ or _network-related error_ from WSL                                                                                          | Use a SQL login or Entra ID, not Windows authentication. Turn on mirrored networking for a server on your own machine (step 4).                                                                                                         |
+| Message                                                                                                                                     | Fix                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _No executable efcpt found for current version_ (asdf)                                                                                      | The project pins another Node version. Add the shell function from [step 3](#3-add-the-efcpt-command).                                                                                                                                   |
+| `efcpt: command not found`                                                                                                                  | WSL: add the shell function from step 3 and open a new shell. Windows: open a new window after `npm link`.                                                                                                                               |
+| fish: _command substitutions not allowed here_                                                                                              | fish doesn't accept `(...)` as a command name. Use the step 3 function, which writes the path out.                                                                                                                                       |
+| PowerShell: _running scripts is disabled on this system_                                                                                    | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, or type `efcpt.cmd`.                                                                                                                                                              |
+| _Login failed_ or _network-related error_ from WSL                                                                                          | Use a SQL login or Entra ID, not Windows authentication. Turn on mirrored networking for a server on your own machine (step 4).                                                                                                          |
 | _Microsoft Entra ID sign-in failed_                                                                                                         | Run `az login` again, on the same side (Windows or WSL) you run efcpt-cli. Your account must be a user in the database.                                                                                                                  |
-| _The certificate chain was issued by an authority that is not trusted_                                                                      | Add `TrustServerCertificate=True` to the connection string.                                                                                                                                                                             |
+| _The certificate chain was issued by an authority that is not trusted_                                                                      | Add `TrustServerCertificate=True` to the connection string.                                                                                                                                                                              |
 | Every generated file shows as changed                                                                                                       | Update efcpt-cli (above). It keeps your files' line endings. Also check the project's EF Core version matches the engine you built.                                                                                                      |
 | After updating, a few generated files change (for example `DbContextExtensions.cs`, `HasAnnotation("Relational:DefaultConstraintName", …)`) | efcpt-cli uses a newer version of the code generator than the EF Core Power Tools release in Visual Studio. Commit the changes once; teammates who still generate from Visual Studio should update the extension, or it flips them back. |
-| Something fixed upstream still happens to you                                                                                               | Update your clone and rebuild: [Updating efcpt-cli](#updating-efcpt-cli).                                                                                                                                                                 |
-| _no engine found_                                                                                                                           | Build the engine for your project's EF Core version (step 2).                                                                                                                                                                           |
+| Something fixed upstream still happens to you                                                                                               | Update your clone and rebuild: [Updating efcpt-cli](#updating-efcpt-cli).                                                                                                                                                                |
+| _no engine found_                                                                                                                           | Build the engine for your project's EF Core version (step 2).                                                                                                                                                                            |
 
 ## Using it in a project
 

@@ -41,7 +41,7 @@ Why A: `efcpt` already owns the config → options mapping (`CliConfigMapper`), 
 ### AD-5: Keep the fork mergeable
 
 - New .NET code goes in **new files** where possible (for example `Services/ListObjectsService.cs`, `Services/JsonOutput.cs`). Edits to existing upstream files are limited to option wiring.
-- The Node/TS package lives in a new top-level folder `packages/efcpt-ui/`, away from `src/`.
+- The Node/TS package lives in a new top-level folder `packages/efcpt-cli/`, away from `src/`.
 - Merge upstream `master` into the fork monthly (pull only). All our work, CI, releases and PRs stay in `ReesMcD/ef-core-power-tools-package`. Nothing is pushed or proposed upstream (SCOPE open question 3).
 - When opening PRs in the GitHub UI, check that the base repository is `ReesMcD/ef-core-power-tools-package`. GitHub defaults a fork's PRs to the original project.
 
@@ -50,7 +50,7 @@ Why A: `efcpt` already owns the config → options mapping (`CliConfigMapper`), 
 ### Phase 0: Foundations (≈2–3 days)
 
 - Decide the open questions in SCOPE (name, UI stack, distribution).
-- Set up the repo: `packages/efcpt-ui` workspace, lint/format, a TS build, and a CI job on Ubuntu, Windows and macOS.
+- Set up the repo: `packages/efcpt-cli` workspace, lint/format, a TS build, and a CI job on Ubuntu, Windows and macOS.
 - Confirm the fork builds `efcpt.10` and runs NUnit tests on Linux in CI (the workflows already exist; they may need enabling on the fork).
 - A sample target project with SQLite and SQL Server (docker) fixtures for end-to-end tests.
 

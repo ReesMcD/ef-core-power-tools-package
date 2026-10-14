@@ -58,7 +58,9 @@ switch (mode) {
     const customer = join(out, 'Models', 'Customer.cs');
     writeFileSync(customer, '\uFEFFnamespace Sample;\n\npublic class Customer // café\n{\n}\n');
     writeFileSync(join(out, 'Models', 'dbo', 'Order.cs'), '\uFEFFnamespace Sample;\n\npublic class Order\n{\n}\n');
-    console.log(JSON.stringify({ ...base, command: 'generate', entityTypeFilePaths: [customer], args }));
+    const readmePath = join(out, 'efcpt-readme.md');
+    writeFileSync(readmePath, '# Next steps\n');
+    console.log(JSON.stringify({ ...base, command: 'generate', entityTypeFilePaths: [customer], readmePath, args }));
     break;
   }
   case 'error':

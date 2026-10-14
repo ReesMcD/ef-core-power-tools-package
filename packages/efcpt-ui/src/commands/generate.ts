@@ -1,4 +1,5 @@
-import { mkdir } from 'node:fs/promises';
+import { copyFile, mkdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { defaultFormat, loadConfig, saveConfig } from '../config/io.js';
 import { completeNames, createConfigTemplate } from '../config/template.js';
@@ -71,11 +72,34 @@ function configuredOutputFolders(session: Session): string[] {
 }
 
 /**
- * Runs the engine, then gives the generated files the line endings the existing generated code uses (or the
- * config's "efcpt-ui": { "line-endings": "crlf" | "lf" }), so regenerating from WSL doesn't change every file
- * that Visual Studio generated on Windows.
+ * The engine writes its next steps (efcpt-readme.md) into the project. Visual Studio writes them to the temp
+ * folder instead, so they never show up in the project's changes; do the same. One file per config.
  */
-export async function generateKeepingLineEndings(
+async function moveReadmeOutOfProject(readmePath: string, session: Session): Promise<string> {
+  const relative = path.relative(session.project.projectDir, readmePath);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return readmePath;
+  const target = path.join(
+    tmpdir(),
+    'efcpt-ui',
+    `${path.basename(session.project.projectPath, path.extname(session.project.projectPath))}.${path.basename(session.configPath, '.json')}.readme.md`,
+  );
+  try {
+    await mkdir(path.dirname(target), { recursive: true });
+    await copyFile(readmePath, target);
+    await rm(readmePath, { force: true });
+    return target;
+  } catch {
+    return readmePath;
+  }
+}
+
+/**
+ * Runs the engine, then tidies up like Visual Studio does: the next steps readme moves out of the project, and
+ * the generated files get the line endings the existing generated code uses (or the config's
+ * "efcpt-ui": { "line-endings": "crlf" | "lf" }), so regenerating from WSL doesn't change every file that
+ * Visual Studio generated on Windows.
+ */
+export async function generateInProject(
   engine: Engine,
   session: Session,
   connection: ResolvedConnection,
@@ -88,6 +112,7 @@ export async function generateKeepingLineEndings(
   const started = Date.now() - 2000;
 
   const doc = await generate(engine, generateRequest(session, connection), options);
+  if (doc.success && doc.readmePath) doc.readmePath = await moveReadmeOutOfProject(doc.readmePath, session);
   if (!doc.success || !ending) return { doc };
 
   const reported = [
@@ -110,7 +135,7 @@ export async function runGenerate(context: CommandContext): Promise<number> {
   for (const change of await prepareConfig(session, connection)) io.err(change);
 
   const started = Date.now();
-  const { doc, lineEndingNote } = await generateKeepingLineEndings(engine, session, connection, {
+  const { doc, lineEndingNote } = await generateInProject(engine, session, connection, {
     timeoutMs: context.timeoutMs ?? defaultTimeoutMs,
     onLog: context.verbose ? (line) => io.err(line) : undefined,
   });

@@ -1,7 +1,7 @@
 import { access, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { UsageError, type CliArgs } from '../args.js';
-import { generateKeepingLineEndings, generateTimeoutMs, prepareConfig } from '../commands/generate.js';
+import { generateInProject, generateTimeoutMs, prepareConfig } from '../commands/generate.js';
 import { prepareEngine, type Output } from '../commands/common.js';
 import { findConfigFiles } from '../config/discovery.js';
 import { efcptPathFor, findVsConfigFiles } from '../config/vs-import.js';
@@ -331,7 +331,7 @@ export class UiController {
     this.busy = true;
     try {
       for (const change of await prepareConfig(session, connection)) onLog(change);
-      const { doc: result, lineEndingNote } = await generateKeepingLineEndings(
+      const { doc: result, lineEndingNote } = await generateInProject(
         await this.engine(session),
         session,
         connection,

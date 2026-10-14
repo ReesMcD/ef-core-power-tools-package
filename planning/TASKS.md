@@ -12,10 +12,10 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 - [x] **F1** Decide the open questions in SCOPE.md: package/command name, engine distribution, UI stack, config formats, Node minimum, whether to upstream
   - Decided: package `efcpt-ui`, command `efcpt` with `efcpt-ui` as an alias (engine: `ReesMcD.EFCorePowerTools.Engine` / `efcpt-ui-engine`); engines built from the clone for now, downloads later; fork-only; Node 22+; Vite + React; `efcpt-config.json` plus a VS importer. Still open: syncing with upstream (U1)
 - [x] **F2** GitHub Actions enabled on the fork and green: `cli-tool.yml` (engine tests + efcpt 8/9/10 + JSON smoke test), `vsix.yml` (VS extension build; file-count check updated to 113). Upstream publish/signing steps are skipped on the fork
-- [x] **F3** Create the `packages/efcpt-ui/` workspace: TypeScript 6.0 (typescript-eslint doesn't support 7 yet), ESLint, Prettier, Vitest, `bin` entry, `npm pack` smoke test
+- [x] **F3** Create the `packages/efcpt-cli/` workspace: TypeScript 6.0 (typescript-eslint doesn't support 7 yet), ESLint, Prettier, Vitest, `bin` entry, `npm pack` smoke test
 - [x] **F4** TS types generated from `samples/efcpt-config.schema.json` (`npm run sync-schema`; committed, CI fails if stale via `npm run check-schema`)
-- [x] **F5** Test fixtures: a sample .NET 10 project + SQLite DB (checked in), a SQL Server schema script (`packages/efcpt-ui/test/fixtures/mssql/tricky.sql`) run in a CI service container
-  - Done: `packages/efcpt-ui/test/fixtures/sample-project` (net10.0, EF Core SQLite 10.0.12, `shop.db`) and `test/fixtures/mssql/tricky.sql` (SQL Server 2022 service container in CI)
+- [x] **F5** Test fixtures: a sample .NET 10 project + SQLite DB (checked in), a SQL Server schema script (`packages/efcpt-cli/test/fixtures/mssql/tricky.sql`) run in a CI service container
+  - Done: `packages/efcpt-cli/test/fixtures/sample-project` (net10.0, EF Core SQLite 10.0.12, `shop.db`) and `test/fixtures/mssql/tricky.sql` (SQL Server 2022 service container in CI)
 - [x] **F6** Measure engine publish size for each EF version to settle AD-4. Result: 243 MB gzipped for all three, 42 MB for a trimmed single engine, so the plan is download on first use (see PLAN AD-4, ENGINE_INTERFACE.md)
 - [x] **F8** Fork identity for the engine CLI: our own `PackageId` / `RepositoryUrl` / authors in `efcpt.8/9/10.csproj` (keep MIT attribution to ErikEJ). Disable or repoint `PackageService.CheckForPackageUpdateAsync`, which currently tells users to update to the official `ErikEJ.EFCorePowerTools.Cli`. Don't reuse the `efcpt` command name if it would clash with a globally installed official tool
   - Done: `PackageId` `ReesMcD.EFCorePowerTools.Engine`, command `efcpt-ui-engine`, fork URLs/authors (ErikEJ copyright kept), update check and header link point at the fork. Left for release (R4): the packaged `readme.md` still has the upstream install instructions
@@ -36,7 +36,7 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 - [x] **E9** Fix upstream bugs found along the way: connection failures silently exited 0; an unreadable config file made the CLI hang; unknown provider gave a misleading second error
 - [-] **E8** ~~Open an upstream PR~~ Dropped: all work stays in the fork
 
-## Phase 2: Launcher and headless path (`packages/efcpt-ui`)
+## Phase 2: Launcher and headless path (`packages/efcpt-cli`)
 
 - [x] **L1** CLI argument parsing (`node:util` parseArgs): `--config`, `--project`, `--connection`, `--connection-env`, `--provider`, `--port`, `--no-open`, `--generate`, `--list`, `--engine`, `--verbose`, `--help`, `--version`. `--port`/`--no-open` are parsed for the UI (Phase 3)
 - [x] **L2** Config discovery: `efcpt-config.json`, `efcpt-config.*.json`, `*.efcpt.json` (not `*.schema.json`) under the project, skipping `bin/`, `obj/`, `node_modules/`, `.git/`. Several configs → asks for `--config` (UI picker in Phase 3)
@@ -51,7 +51,7 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 
 ## Phase 3: GUI v1
 
-### Server (`packages/efcpt-ui/src/server`)
+### Server (`packages/efcpt-cli/src/server`)
 
 - [x] **S1** Local HTTP server (`node:http`) on `127.0.0.1`, free port or `--port`. One-time token in the URL → HttpOnly SameSite=Strict cookie (name includes the port). Host check (DNS rebinding), Origin check and `x-efcpt-ui` header on the API, CSP, no path traversal. Every JSON response and stream event is deep-redacted
 - [x] **S2** `GET /api/session`: config, configs in the project, project, EF version, provider, connection _source_ (never the value), warnings
@@ -62,7 +62,7 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 - [~] **S7** `POST /api/connection`: a connection typed in the UI is tested by reading the database and kept in memory only. Picking one of the project's user-secret connection strings saves that choice in the config (`POST /api/connection-secret`). Still to do: optionally save a typed connection to user-secrets
 - [x] **S8** Lifecycle: opens the browser (no dependency), heartbeat every 10 s, stops 15 s after the tab closes (unless reloaded), after 60 s without heartbeat, or on Ctrl+C
 
-### Web (`packages/efcpt-ui/src/web`)
+### Web (`packages/efcpt-cli/src/web`)
 
 - [x] **W1** App shell: header (project, EF version, config picker, connection source), tabs Objects / Settings / Generate, light/dark from the OS
 - [x] **W2** Config picker (several configs or none) and "New config…" in the header
@@ -100,7 +100,8 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 - [x] **R12** `efcpt --update` / `npm run update` (`scripts/update.mjs`): pulls the clone and rebuilds only what changed (built engines, npm dependencies, efcpt-ui); stops on local changes
 - [x] **R13** README getting started for cmd, PowerShell, bash, zsh and fish, with Node from winget, nvm-windows, nvm, nvm.fish or asdf; refreshing without the UI (`--generate`, `efcpt-refresh`); Windows authentication and Microsoft Entra ID sign-in; updating; troubleshooting. Snippets run as written in bash, zsh and fish
 - [x] **R14** Connection hint for failed Microsoft Entra ID sign-in (`az login`, database user)
-- [x] **R15** Command renamed to `efcpt` (`efcpt-ui` kept as an alias)
+- [x] **R15** Command renamed to `efcpt`
+- [x] **R16** Renamed efcpt-ui to **efcpt-cli** (`packages/efcpt-cli`, workflow `efcpt-cli.yml`, `efcpt-cli-engine`, `EFCPT_CLI_*`), and removed the `efcpt-ui` command. Compatibility: `"efcpt-ui"` config sections and `EFCPT_UI_ENGINE` still work. `efcpt --update` hands over to the freshly pulled script, renames `efcpt-ui` shell functions to `efcpt` and replaces the global npm link; a stub in `packages/efcpt-ui` lets updates from before the rename finish the move (remove it once everyone has updated). Checked by updating a clone of the pre-rename version with its own `efcpt-ui --update` from fish
 
 ## Upstream
 

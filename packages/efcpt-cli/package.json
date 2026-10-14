@@ -1,0 +1,69 @@
+{
+  "name": "efcpt-cli",
+  "version": "0.1.0",
+  "description": "efcpt-cli: reverse engineer a database into EF Core models from any .NET project, no Visual Studio needed. Fork of EF Core Power Tools by ErikEJ.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "efcpt": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "scripts/update.mjs",
+    "schema",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ReesMcD/ef-core-power-tools-package.git",
+    "directory": "packages/efcpt-cli"
+  },
+  "keywords": [
+    "efcore",
+    "entity-framework-core",
+    "ef-core-power-tools",
+    "efcpt",
+    "reverse-engineering",
+    "scaffolding"
+  ],
+  "scripts": {
+    "build": "npm run clean && tsc -p tsconfig.build.json && vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.web.json",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "sync-schema": "node scripts/sync-schema.mjs",
+    "check-schema": "node scripts/sync-schema.mjs --check",
+    "dev:web": "vite build --watch",
+    "test:ui": "playwright test",
+    "update": "node scripts/update.mjs",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\""
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-draft-04": "^1.0.0",
+    "fast-xml-parser": "^5.11.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.20.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0",
+    "json-schema-to-typescript": "^16.0.0",
+    "prettier": "^3.9.9",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.1",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.1"
+  }
+}

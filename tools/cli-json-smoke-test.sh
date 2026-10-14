@@ -41,7 +41,7 @@ echo "--- generate --json with config round trip"
 cat > efcpt-config.json <<'EOF'
 {
   "$schema": "./local.schema.json",
-  "efcpt-ui": { "connection": { "env": "SHOP_DB" } },
+  "efcpt-cli": { "connection": { "env": "SHOP_DB" } },
   "code-generation": { "refresh-object-lists": true },
   "tables": [ { "name": "AuditLog", "exclude": true } ]
 }
@@ -56,7 +56,7 @@ assert files == ['BigOrder.cs', 'Customer.cs', 'Order.cs'], files
 assert all(os.path.exists(p) for p in d['entityTypeFilePaths'] + [d['contextFilePath']])
 c = json.load(open('efcpt-config.json', encoding='utf-8-sig'))
 assert c['$schema'] == './local.schema.json', c['$schema']
-assert c['efcpt-ui'] == {'connection': {'env': 'SHOP_DB'}}, c.get('efcpt-ui')
+assert c['efcpt-cli'] == {'connection': {'env': 'SHOP_DB'}}, c.get('efcpt-cli')
 EOF
 
 echo "--- errors are reported as JSON with a non-zero exit code"

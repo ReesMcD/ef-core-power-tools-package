@@ -42,7 +42,7 @@ Always spawn **without a shell** (`spawn('dotnet', [engineDll, ...args])`), so c
 ## Rules the UI must follow
 
 1. **Match objects to config entries by `displayName`.** That's the `name` the CLI writes and reads in `tables` / `views` / `stored-procedures` / `functions`. The format depends on the provider: `[schema].[name]` for SQL Server and dacpac, `schema.name` or just `name` for others.
-2. **Selection semantics** (mirrors `CliConfigMapper`; implemented in `packages/efcpt-ui/src/config/selection.ts`, checked against real generation in `test/e2e.test.ts`):
+2. **Selection semantics** (mirrors `CliConfigMapper`; implemented in `packages/efcpt-cli/src/config/selection.ts`, checked against real generation in `test/e2e.test.ts`):
    - `refresh-object-lists` is **on by default**. When it's on, every database object missing from the config is **added** (as `{ "name": ... }`) before the rules below apply, so new objects are generated unless a wildcard or `exclude` says otherwise. To leave out an object that isn't listed yet, add it with `"exclude": true`.
    - With `refresh-object-lists: false`, an object with **no entry** in the config is **not** generated.
    - With no config file at all, efcpt creates one listing every object, so everything is generated.
@@ -51,7 +51,7 @@ Always spawn **without a shell** (`spawn('dotnet', [engineDll, ...args])`), so c
    - An explicit `"exclude": false` beats any wildcard. Otherwise the object is generated unless `"exclude": true`.
 3. **Config files written by efcpt start with a UTF-8 BOM.** Strip it before `JSON.parse`. Writing without a BOM is fine; the CLI reads both.
 4. **The CLI reorders keys when it rewrites the config** (`$schema`, `code-generation`, `file-layout`, `names`, `tables`, …, then unknown sections). The UI should write in the same order so diffs stay small.
-5. Unknown **top-level** sections (for example `efcpt-ui`) survive rewrites. Unknown keys **inside** known sections (for example inside `code-generation`) do **not**. Keep UI metadata at the top level.
+5. Unknown **top-level** sections (for example `efcpt-cli`) survive rewrites. Unknown keys **inside** known sections (for example inside `code-generation`) do **not**. Keep UI metadata at the top level.
 6. Only `efcpt-config.json` is the source of truth. `--list-objects` has no side effects, so it's safe to call repeatedly (cache it per session anyway: large databases can take several seconds).
 
 ## Engine behaviour fixed along the way

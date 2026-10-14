@@ -147,7 +147,7 @@ namespace UnitTests
             const string json = """
                 {
                   "$schema": "./local.schema.json",
-                  "efcpt-ui": { "connection": { "env": "SHOP_DB" } },
+                  "efcpt-cli": { "connection": { "env": "SHOP_DB" } },
                   "tables": [ { "name": "[dbo].[Users]" } ]
                 }
                 """;
@@ -158,7 +158,7 @@ namespace UnitTests
             using var document = JsonDocument.Parse(written);
             var root = document.RootElement;
             Assert.Equal("./local.schema.json", root.GetProperty("$schema").GetString());
-            Assert.Equal("SHOP_DB", root.GetProperty("efcpt-ui").GetProperty("connection").GetProperty("env").GetString());
+            Assert.Equal("SHOP_DB", root.GetProperty("efcpt-cli").GetProperty("connection").GetProperty("env").GetString());
             Assert.Equal("[dbo].[Users]", root.GetProperty("tables")[0].GetProperty("name").GetString());
         }
 
@@ -180,7 +180,7 @@ namespace UnitTests
                 """
                 {
                   "$schema": "./local.schema.json",
-                  "efcpt-ui": { "connection": { "env": "SHOP_DB" } },
+                  "efcpt-cli": { "connection": { "env": "SHOP_DB" } },
                   "code-generation": { "refresh-object-lists": true },
                   "tables": [ { "name": "[dbo].[Users]", "exclude": true } ]
                 }
@@ -199,7 +199,7 @@ namespace UnitTests
             using var document = JsonDocument.Parse(File.ReadAllText(path, Encoding.UTF8));
             var root = document.RootElement;
             Assert.Equal("./local.schema.json", root.GetProperty("$schema").GetString());
-            Assert.Equal("SHOP_DB", root.GetProperty("efcpt-ui").GetProperty("connection").GetProperty("env").GetString());
+            Assert.Equal("SHOP_DB", root.GetProperty("efcpt-cli").GetProperty("connection").GetProperty("env").GetString());
 
             var tables = root.GetProperty("tables").EnumerateArray().ToList();
             Assert.Equal(2, tables.Count);

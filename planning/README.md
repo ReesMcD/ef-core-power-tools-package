@@ -10,7 +10,7 @@ Planning docs for turning this fork of [EF Core Power Tools](https://github.com/
 | [TASKS.md](TASKS.md)                         | Task checklist grouped by phase                                                                                                                           |
 | [ENGINE_INTERFACE.md](ENGINE_INTERFACE.md)   | The `efcpt --list-objects --json` contract, selection rules the UI must follow, measured engine sizes                                                     |
 | [spikes/](spikes/)                           | Throwaway proofs of concept (`list-objects.mjs`: Node → efcpt → JSON, superseded by `efcpt --list`)                                                       |
-| [../packages/efcpt-ui](../packages/efcpt-ui) | The tool itself (command `efcpt`, formerly `efcpt-ui`): web UI, headless `--generate` / `--list`, `--import-vs`, `--update`. Its README is the user guide |
+| [../packages/efcpt-cli](../packages/efcpt-cli) | The tool itself, efcpt-cli (command `efcpt`; called efcpt-ui until 2026-10-14): web UI, headless `--generate` / `--list`, `--import-vs`, `--update`. Its README is the user guide |
 
 ## Status (2026-10-14)
 

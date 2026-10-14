@@ -1,17 +1,17 @@
 # EF Core Power Tools
 
-> ## This fork: efcpt-ui, no Visual Studio needed
+> ## This fork: efcpt-cli, no Visual Studio needed
 >
-> This fork adds **efcpt-ui**: run EF Core Power Tools' reverse engineering from any .NET project, from Windows (cmd or PowerShell) or WSL, with a browser UI to pick tables and options, driven by `efcpt-config.json`. It can import your Visual Studio extension config (`efpt.config.json`) and generates the same code. Full guide: [packages/efcpt-ui/README.md](packages/efcpt-ui/README.md).
+> This fork adds **efcpt-cli** (command `efcpt`): run EF Core Power Tools' reverse engineering from any .NET project, from Windows (cmd or PowerShell) or WSL, with a browser UI to pick tables and options, driven by `efcpt-config.json`. It can import your Visual Studio extension config (`efpt.config.json`) and generates the same code. Full guide: [packages/efcpt-cli/README.md](packages/efcpt-cli/README.md).
 >
-> **Getting started:** [step-by-step guide](packages/efcpt-ui/README.md#getting-started) with commands to copy and paste for:
+> **Getting started:** [step-by-step guide](packages/efcpt-cli/README.md#getting-started) with commands to copy and paste for:
 >
 > - **Windows:** cmd and PowerShell
 > - **WSL:** bash, zsh and fish
 > - **Node:** plain Node, nvm and asdf
 > - **Sign-in:** SQL logins, Windows authentication and Microsoft Entra ID
 >
-> In short: install .NET 10, Node 22+ and git, then clone this repository, build the engine and efcpt-ui, and run it in your project:
+> In short: install .NET 10, Node 22+ and git, then clone this repository, build the engine and efcpt-cli, and run it in your project:
 >
 > ```bash
 > efcpt --import-vs efpt.config.json     # if you used the Visual Studio extension
@@ -20,10 +20,10 @@
 > efcpt --update                         # after new changes are pushed here
 > ```
 >
-> - The connection string is read from the project's user secrets, like your app does. Other options are in [Connection strings](packages/efcpt-ui/README.md#connection-strings).
+> - The connection string is read from the project's user secrets, like your app does. Other options are in [Connection strings](packages/efcpt-cli/README.md#connection-strings).
 > - Run it on a branch: generating overwrites the output folder.
-> - **After new changes are pushed here,** run `efcpt --update`: it pulls and rebuilds what changed. See [Updating efcpt-ui](packages/efcpt-ui/README.md#updating-efcpt-ui).
-> - The command is `efcpt`; the older name `efcpt-ui` still works.
+> - **After new changes are pushed here,** run `efcpt --update`: it pulls and rebuilds what changed. See [Updating efcpt-cli](packages/efcpt-cli/README.md#updating-efcpt-cli).
+> - Installed it when it was called efcpt-ui? Run `efcpt-ui --update` once; see [Coming from efcpt-ui](packages/efcpt-cli/README.md#coming-from-efcpt-ui).
 >
 > Everything below is the original EF Core Power Tools README.
 

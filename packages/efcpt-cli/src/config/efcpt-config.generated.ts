@@ -1,6 +1,8 @@
 /* Generated from samples/efcpt-config.schema.json by scripts/sync-schema.mjs. Do not edit. */
 
 export type AddOnConfiguringMethodToTheDbContext = boolean;
+export type CharacterSetForGeneratedFiles = 'utf-8-bom' | 'utf-8';
+export type LineEndingStyleForGeneratedFiles = 'lf' | 'crlf' | 'native';
 export type TypeOfFilesToGenerate = 'all' | 'dbcontext' | 'entities';
 export type UseTableAndColumnNamesFromTheDatabase = boolean;
 export type UseDataAnnotationAttributesRatherThanTheFluentAPIAsMuchAsPossible = boolean;
@@ -93,6 +95,8 @@ export interface EfcptConfig {
 }
 export interface OptionsForCodeGeneration {
   'enable-on-configuring': AddOnConfiguringMethodToTheDbContext;
+  'file-charset'?: CharacterSetForGeneratedFiles;
+  'file-line-endings'?: LineEndingStyleForGeneratedFiles;
   type: TypeOfFilesToGenerate;
   'use-database-names': UseTableAndColumnNamesFromTheDatabase;
   'use-data-annotations': UseDataAnnotationAttributesRatherThanTheFluentAPIAsMuchAsPossible;

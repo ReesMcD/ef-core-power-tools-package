@@ -71,7 +71,8 @@ internal static class Program
                         .RegisterServices(fileSystem, options)
                         .Build();
 
-                    // Setup errors (for example an unreadable config file) leave no hosted service to stop the host, so do not start it
+                    // Setup errors (for example an unreadable config file) leave no hosted service to stop the host, so do not
+                    // start it. Unlike returning early, this still writes the JSON error document below.
                     if (Environment.ExitCode == 0)
                     {
                         await host.RunAsync()

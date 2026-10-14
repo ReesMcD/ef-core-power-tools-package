@@ -79,6 +79,8 @@ namespace RevEng.Core
 
             ValidateOptions(options, warnings);
 
+            var fileFormat = GeneratedFileFormat.From(options);
+
             var entityTypeConfigurationPaths = new List<string>();
             SavedModelFiles procedurePaths = null;
             SavedModelFiles functionPaths = null;
@@ -121,16 +123,16 @@ namespace RevEng.Core
                             }
                         }
 
-                        RetryFileWrite(filePaths.ContextFile, dbContextLines);
+                        RetryFileWrite(filePaths.ContextFile, dbContextLines, fileFormat);
                     }
 
-                    RemoveFragments(filePaths.ContextFile, options.ContextClassName, options.IncludeConnectionString, options.UseNoDefaultConstructor);
+                    RemoveFragments(filePaths.ContextFile, options.ContextClassName, options.IncludeConnectionString, options.UseNoDefaultConstructor, fileFormat);
                     if (!options.UseHandleBars && !options.UseT4 && !options.UseT4Split)
                     {
-                        PostProcess(filePaths.ContextFile, options.UseNullableReferences);
+                        PostProcess(filePaths.ContextFile, options.UseNullableReferences, fileFormat);
                     }
 
-                    entityTypeConfigurationPaths = SplitDbContext(filePaths.ContextFile, options.UseDbContextSplitting, contextNamespace, options.UseNullableReferences, options.ContextClassName);
+                    entityTypeConfigurationPaths = SplitDbContext(filePaths.ContextFile, options.UseDbContextSplitting, contextNamespace, options.UseNullableReferences, options.ContextClassName, fileFormat);
 
                     if (options.UseT4Split)
                     {
@@ -147,7 +149,7 @@ namespace RevEng.Core
                 {
                     foreach (var file in filePaths.AdditionalFiles)
                     {
-                        PostProcess(file, options.UseNullableReferences);
+                        PostProcess(file, options.UseNullableReferences, fileFormat);
                     }
                 }
 
@@ -232,13 +234,18 @@ namespace RevEng.Core
             return string.Join(".", parts);
         }
 
-        public static void RetryFileWrite(string path, List<string> finalLines)
+        public static void RetryFileWrite(string path, List<string> finalLines, GeneratedFileFormat fileFormat)
         {
+            ArgumentNullException.ThrowIfNull(path);
+            ArgumentNullException.ThrowIfNull(finalLines);
+            ArgumentNullException.ThrowIfNull(fileFormat);
+
             for (int i = 1; i <= 4; ++i)
             {
                 try
                 {
-                    File.WriteAllLines(path, finalLines, Encoding.UTF8);
+                    WriteLines(path, finalLines, fileFormat);
+
                     break;
                 }
                 catch (IOException) when (i <= 3)
@@ -248,19 +255,99 @@ namespace RevEng.Core
             }
         }
 
-        public static void RetryFileWrite(string path, string finalText)
+        public static void RetryFileWrite(string path, string finalText, GeneratedFileFormat fileFormat)
         {
+            ArgumentNullException.ThrowIfNull(fileFormat);
+
             for (int i = 1; i <= 4; ++i)
             {
                 try
                 {
-                    File.WriteAllText(path, finalText, Encoding.UTF8);
+                    File.WriteAllText(path, NormalizeLineEndings(finalText, fileFormat.LineEndingStyle), GetConfiguredEncoding(fileFormat.Charset));
                     break;
                 }
                 catch (IOException) when (i <= 3)
                 {
                     Thread.Sleep(500);
                 }
+            }
+        }
+
+        public static string NormalizeLineEndings(string text, string lineEndingStyle)
+        {
+            ArgumentNullException.ThrowIfNull(text);
+
+            var normalized = text
+                .Replace("\r\n", "\n", StringComparison.Ordinal)
+                .Replace("\r", "\n", StringComparison.Ordinal);
+
+            return normalized.Replace("\n", GetConfiguredLineEnding(lineEndingStyle), StringComparison.Ordinal);
+        }
+
+        public static bool IsSupportedLineEndingStyle(string lineEndingStyle)
+        {
+            return string.IsNullOrWhiteSpace(lineEndingStyle)
+                || lineEndingStyle.Equals("native", StringComparison.OrdinalIgnoreCase)
+                || lineEndingStyle.Equals("lf", StringComparison.OrdinalIgnoreCase)
+                || lineEndingStyle.Equals("crlf", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string GetConfiguredLineEnding(string lineEndingStyle)
+        {
+            if (string.IsNullOrWhiteSpace(lineEndingStyle)
+                || lineEndingStyle.Equals("native", StringComparison.OrdinalIgnoreCase))
+            {
+                return Environment.NewLine;
+            }
+
+            if (lineEndingStyle.Equals("lf", StringComparison.OrdinalIgnoreCase))
+            {
+                return "\n";
+            }
+
+            if (lineEndingStyle.Equals("crlf", StringComparison.OrdinalIgnoreCase))
+            {
+                return "\r\n";
+            }
+
+            throw new ArgumentOutOfRangeException(nameof(lineEndingStyle), lineEndingStyle, "Unsupported line ending style.");
+        }
+
+        public static bool IsSupportedCharset(string charset)
+        {
+            return string.IsNullOrWhiteSpace(charset)
+                || charset.Equals("utf-8-bom", StringComparison.OrdinalIgnoreCase)
+                || charset.Equals("utf-8", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static Encoding GetConfiguredEncoding(string charset)
+        {
+            if (string.IsNullOrWhiteSpace(charset)
+                || charset.Equals("utf-8-bom", StringComparison.OrdinalIgnoreCase))
+            {
+                return Encoding.UTF8;
+            }
+
+            if (charset.Equals("utf-8", StringComparison.OrdinalIgnoreCase))
+            {
+                return Encoding.Default;
+            }
+
+            throw new ArgumentOutOfRangeException(nameof(charset), charset, "Unsupported charset.");
+        }
+
+        private static void WriteLines(string path, IEnumerable<string> lines, GeneratedFileFormat fileFormat)
+        {
+            var lineEnding = GetConfiguredLineEnding(fileFormat.LineEndingStyle);
+            var encoding = GetConfiguredEncoding(fileFormat.Charset);
+            using var streamWriter = new StreamWriter(path, false, encoding)
+            {
+                NewLine = lineEnding,
+            };
+
+            foreach (var line in lines)
+            {
+                streamWriter.WriteLine(line);
             }
         }
 
@@ -320,6 +407,18 @@ namespace RevEng.Core
                 warnings.Add("UseInternalAccessModifiersForSprocsAndFunctions is set to true, but UseT4 or UseT4Split are not true.  This will result in conflicting access modifiers for the partial DBContext class.  This option is intended for when the T4 templates have been used and are setting the DBContext class to internal rather than public.  UseInternalAccessModifiersForSprocsAndFunctions will be reset to false to ensure a valid DBContext is generated.");
                 options.UseInternalAccessModifiersForSprocsAndFunctions = false;
             }
+
+            if (!IsSupportedLineEndingStyle(options.FileLineEndingStyle))
+            {
+                warnings.Add($"FileLineEndingStyle '{options.FileLineEndingStyle}' is invalid. Supported values are 'native', 'lf', or 'crlf'. The native platform line ending will be used.");
+                options.FileLineEndingStyle = "native";
+            }
+
+            if (!IsSupportedCharset(options.FileCharset))
+            {
+                warnings.Add($"FileCharset '{options.FileCharset}' is invalid. Supported values are 'utf-8-bom' or 'utf-8'. 'utf-8-bom' will be used.");
+                options.FileCharset = "utf-8-bom";
+            }
         }
 
         private static SavedModelFiles CreateCleanupPaths(SavedModelFiles procedurePaths, SavedModelFiles functionPaths, SavedModelFiles filePaths)
@@ -347,14 +446,14 @@ namespace RevEng.Core
             return cleanUpPaths;
         }
 
-        private static List<string> SplitDbContext(string contextFile, bool useDbContextSplitting, string contextNamespace, bool supportNullable, string dbContextName)
+        private static List<string> SplitDbContext(string contextFile, bool useDbContextSplitting, string contextNamespace, bool supportNullable, string dbContextName, GeneratedFileFormat fileFormat)
         {
             if (!useDbContextSplitting)
             {
                 return new List<string>();
             }
 
-            return DbContextSplitter.Split(contextFile, contextNamespace, supportNullable, dbContextName);
+            return DbContextSplitter.Split(contextFile, contextNamespace, supportNullable, dbContextName, fileFormat);
         }
 
         // If we didn't split, we might have used EntityTypeConfiguration.t4.  In that case, <ModelName>Configuration.cs files were generated.
@@ -405,7 +504,7 @@ namespace RevEng.Core
             return movedFiles;
         }
 
-        private static void RemoveFragments(string contextFile, string contextName, bool includeConnectionString, bool removeDefaultConstructor)
+        private static void RemoveFragments(string contextFile, string contextName, bool includeConnectionString, bool removeDefaultConstructor, GeneratedFileFormat fileFormat)
         {
             if (string.IsNullOrEmpty(contextFile))
             {
@@ -462,10 +561,10 @@ namespace RevEng.Core
                 i++;
             }
 
-            RetryFileWrite(contextFile, finalLines);
+            RetryFileWrite(contextFile, finalLines, fileFormat);
         }
 
-        private static void PostProcess(string file, bool useNullable)
+        private static void PostProcess(string file, bool useNullable, GeneratedFileFormat fileFormat)
         {
             if (string.IsNullOrEmpty(file))
             {
@@ -473,21 +572,23 @@ namespace RevEng.Core
             }
 
             var header = PathHelper.Header;
+            var lineEnding = GetConfiguredLineEnding(fileFormat.LineEndingStyle);
 
             if (useNullable)
             {
-                header = $"{header}{Environment.NewLine}#nullable enable";
+                header = $"{header}{lineEnding}#nullable enable";
             }
             else
             {
-                header = $"{header}{Environment.NewLine}#nullable disable";
+                header = $"{header}{lineEnding}#nullable disable";
             }
 
             var text = File.ReadAllText(file, Encoding.UTF8);
 
             RetryFileWrite(
                 file,
-                header + Environment.NewLine + text.TrimEnd());
+                header + lineEnding + text.TrimEnd(),
+                fileFormat);
         }
 
         private static void CleanUp(SavedModelFiles filePaths, List<string> entityTypeConfigurationPaths, string outputDir)

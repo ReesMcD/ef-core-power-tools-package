@@ -91,9 +91,13 @@ export async function generateInProject(
   connection: ResolvedConnection,
   options: EngineRunOptions,
 ): Promise<{ doc: GenerateDocument; lineEndingNote?: string }> {
-  const setting = parseLineEndingSetting(getUiSection(session.config?.config ?? {})['line-endings']);
+  const config = session.config?.config ?? {};
+  const setting = parseLineEndingSetting(getUiSection(config)['line-endings']);
   const folders = configuredOutputFolders(session);
-  const ending = await lineEndingToKeep(setting, folders);
+  // The engine's own code-generation.file-line-endings ("lf" or "crlf") wins over matching the existing code
+  const engineSetting = config['code-generation']?.['file-line-endings'];
+  const engineDecides = setting === 'auto' && (engineSetting === 'lf' || engineSetting === 'crlf');
+  const ending = engineDecides ? undefined : await lineEndingToKeep(setting, folders);
   // Some file systems store modification times in whole seconds
   const started = Date.now() - 2000;
 

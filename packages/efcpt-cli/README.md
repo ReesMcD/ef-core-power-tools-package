@@ -513,7 +513,7 @@ Paths in this section are relative to the project folder. The engine keeps this 
 
 **User secrets** are read where `dotnet user-secrets` writes them: `~/.microsoft/usersecrets/<UserSecretsId>/secrets.json` on Linux, macOS and WSL (from `$HOME`), `%APPDATA%\Microsoft\UserSecrets\...` on Windows. In WSL, secrets set on the Windows side are found too. The UserSecretsId comes from the project or a `Directory.Build.props` above it. When the secrets belong to another project, such as the startup project of a solution whose models live in a class library, name it with `"project"` (or give its `"id"`).
 
-The section can also name the renaming file, relative to the config: `"renaming": "efpt.Sales.renaming.json"` (default `efpt.renaming.json`), and the line endings of generated files: `"line-endings": "crlf"` or `"lf"`. The default, `"auto"`, matches the existing generated code, and leaves the engine's output alone when there is none yet.
+The section can also name the renaming file, relative to the config: `"renaming": "efpt.Sales.renaming.json"` (default `efpt.renaming.json`), and the line endings of generated files: `"line-endings": "crlf"` or `"lf"`. The default, `"auto"`, matches the existing generated code, and leaves the engine's output alone when there is none yet. If the config sets the engine's own `"file-line-endings": "lf"` or `"crlf"` under `code-generation`, that wins and `"auto"` changes nothing.
 
 ### SQL Server
 
@@ -584,7 +584,7 @@ Requires Node 22 or newer.
 
 ### Keeping up with upstream EF Core Power Tools
 
-The code generator comes from [ErikEJ/EFCorePowerTools](https://github.com/ErikEJ/EFCorePowerTools). This fork is based on its `master` of 19 Aug 2026 (`b5312dc`) and doesn't update itself. Our changes to upstream's code are small: the JSON and `--list-objects` interface in `src/Core/efcpt.8`, extension data in `CliConfig`, and a one-line fix in `ProcedureScaffolder.cs`. Everything else is new files. To bring in upstream changes:
+The code generator comes from [ErikEJ/EFCorePowerTools](https://github.com/ErikEJ/EFCorePowerTools). This fork last merged its `master` on 14 Oct 2026 (`f190200`) and doesn't update itself. Our changes to upstream's code are small: the JSON and `--list-objects` interface in `src/Core/efcpt.8`, extension data in `CliConfig`, and a one-line fix in `ProcedureScaffolder.cs`. Everything else is new files. To bring in upstream changes:
 
 ```bash
 git remote add upstream https://github.com/ErikEJ/EFCorePowerTools   # once

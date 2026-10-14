@@ -1,6 +1,6 @@
 # Delivery Plan
 
-See [SCOPE.md](SCOPE.md) for goals and requirements, and [TASKS.md](TASKS.md) for the checklist.
+See [SCOPE.md](SCOPE.md) for goals and requirements, and [TASKS.md](TASKS.md) for the checklist and current status. This is the original plan; where things turned out differently (command name `efcpt`, engines built from the clone instead of downloaded for now), SCOPE.md and TASKS.md have the decisions.
 
 ## Architecture decisions
 
@@ -8,11 +8,11 @@ See [SCOPE.md](SCOPE.md) for goals and requirements, and [TASKS.md](TASKS.md) fo
 
 The engine (`RevEng.Core.*`) is .NET and EF Core-version specific, so it can't be rewritten in Node. We have three ways to reach it:
 
-| Option | Pros | Cons |
-| --- | --- | --- |
-| **A. Extend the `efcpt` CLI with `--list-objects` and `--json` (chosen)** | Small, additive change in code that's already cross-platform. Same multi-targeting as today (shared source linked into efcpt.8/9/10). Fork-only change | We parse process output (already how the VS extension works) |
-| B. Package `efreveng*` and speak its existing stdout protocol | Zero .NET changes | The protocol is ad-hoc (positional args, `Result:` / `Error:` markers). It takes the full `ReverseEngineerCommandOptions`, so we'd have to re-implement `CliConfigMapper` in TS |
-| C. New ASP.NET "engine server" that hosts the API and UI | One process, typed access | Much more .NET code to maintain against a fast-moving upstream. The UI build gets tied to three EF targets |
+| Option                                                                    | Pros                                                                                                                                                   | Cons                                                                                                                                                                            |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A. Extend the `efcpt` CLI with `--list-objects` and `--json` (chosen)** | Small, additive change in code that's already cross-platform. Same multi-targeting as today (shared source linked into efcpt.8/9/10). Fork-only change | We parse process output (already how the VS extension works)                                                                                                                    |
+| B. Package `efreveng*` and speak its existing stdout protocol             | Zero .NET changes                                                                                                                                      | The protocol is ad-hoc (positional args, `Result:` / `Error:` markers). It takes the full `ReverseEngineerCommandOptions`, so we'd have to re-implement `CliConfigMapper` in TS |
+| C. New ASP.NET "engine server" that hosts the API and UI                  | One process, typed access                                                                                                                              | Much more .NET code to maintain against a fast-moving upstream. The UI build gets tied to three EF targets                                                                      |
 
 Why A: `efcpt` already owns the config → options mapping (`CliConfigMapper`), exclusion wildcards, T4 drop and readme generation. The UI only needs **discovery** and **run** in JSON form. Everything else is editing the JSON file.
 
@@ -103,22 +103,22 @@ Renaming UI (`efpt.renaming.json`), `efpt.config.json` importer, diff preview, M
 
 ## Rough timeline
 
-| Phase | Effort |
-| --- | --- |
-| 0 Foundations | 2–3 d |
-| 1 Engine JSON interface | 3–5 d |
-| 2 Launcher + headless | 3–4 d |
-| 3 GUI v1 | 8–12 d |
-| 4 Hardening + release | ~5 d |
-| **Total to v1** | **≈ 4–6 weeks** for one developer |
+| Phase                   | Effort                            |
+| ----------------------- | --------------------------------- |
+| 0 Foundations           | 2–3 d                             |
+| 1 Engine JSON interface | 3–5 d                             |
+| 2 Launcher + headless   | 3–4 d                             |
+| 3 GUI v1                | 8–12 d                            |
+| 4 Hardening + release   | ~5 d                              |
+| **Total to v1**         | **≈ 4–6 weeks** for one developer |
 
 ## Risks and mitigations
 
-| Risk | Impact | Mitigation |
-| --- | --- | --- |
-| Engine is large (~42 MB per EF version/platform, measured) | Slow first run, needs network | Download once per version into a cache. `--engine` / dotnet tool fallback for offline use |
-| Upstream refactors `efcpt` / `CliConfigMapper` | Merge conflicts | Additive code, small edits to upstream files, monthly merges |
-| `dotnet` runtime missing or wrong major | Engine won't start | Check `dotnet --list-runtimes` up front (as the VS extension does) and show a clear message. `RollForward=Major` already helps |
-| Provider-specific surprises (Oracle schemas, Snowflake, dacpac merge) | Broken edge cases | v1 officially tests SQL Server, SQLite and PostgreSQL; others are "best effort". Pass through the engine's own options |
-| Secrets leaking into config or logs | Security | Connection-resolution design in SCOPE. Redact in logs (the CLI already redacts in the readme) |
-| Config rewrite clobbers user edits | Lost work | `[JsonExtensionData]`, a no-write mode, and minimal-diff writes on the Node side |
+| Risk                                                                  | Impact                        | Mitigation                                                                                                                     |
+| --------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Engine is large (~42 MB per EF version/platform, measured)            | Slow first run, needs network | Download once per version into a cache. `--engine` / dotnet tool fallback for offline use                                      |
+| Upstream refactors `efcpt` / `CliConfigMapper`                        | Merge conflicts               | Additive code, small edits to upstream files, monthly merges                                                                   |
+| `dotnet` runtime missing or wrong major                               | Engine won't start            | Check `dotnet --list-runtimes` up front (as the VS extension does) and show a clear message. `RollForward=Major` already helps |
+| Provider-specific surprises (Oracle schemas, Snowflake, dacpac merge) | Broken edge cases             | v1 officially tests SQL Server, SQLite and PostgreSQL; others are "best effort". Pass through the engine's own options         |
+| Secrets leaking into config or logs                                   | Security                      | Connection-resolution design in SCOPE. Redact in logs (the CLI already redacts in the readme)                                  |
+| Config rewrite clobbers user edits                                    | Lost work                     | `[JsonExtensionData]`, a no-write mode, and minimal-diff writes on the Node side                                               |

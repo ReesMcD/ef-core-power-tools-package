@@ -1,10 +1,10 @@
 # efcpt-ui: EF Core Power Tools UI
 
-Reverse engineer a database into EF Core `DbContext` and entity classes from any .NET project, driven by an `efcpt-config.json`. No Visual Studio needed.
+Reverse engineer a database into EF Core `DbContext` and entity classes from any .NET project, driven by an `efcpt-config.json`. No Visual Studio needed. The command is `efcpt` (or `efcpt-ui`, its older name).
 
 This is a fork of [EF Core Power Tools](https://github.com/ErikEJ/EFCorePowerTools) by ErikEJ (MIT). It is not the official tool.
 
-> **Status: early.** The web UI, `--generate` and `--list` work, tested against SQL Server (including Windows authentication), PostgreSQL and SQLite. It is not on npm yet and engine downloads are not available yet, so you install it from this repository (below).
+> **Status:** in use on the team. The web UI, `--generate`, `--list` and `--import-vs` work, tested against SQL Server (including Windows authentication), PostgreSQL and SQLite. It isn't published to npm: you install it from a clone of this repository (below) and update it with `efcpt --update`.
 
 ## Getting started
 
@@ -396,18 +396,19 @@ You don't need to reinstall anything or redo step 3. If nothing is new, it says 
 
 ### Troubleshooting
 
-| Message                                                                | Fix                                                                                                                                |
-| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| _No executable efcpt found for current version_ (asdf)                 | The project pins another Node version. Add the shell function from [step 3](#3-add-the-efcpt-command).                             |
-| `efcpt: command not found`                                             | WSL: add the shell function from step 3 and open a new shell. Windows: open a new window after `npm link`.                         |
-| fish: _command substitutions not allowed here_                         | fish doesn't accept `(...)` as a command name. Use the step 3 function, which writes the path out.                                 |
-| PowerShell: _running scripts is disabled on this system_               | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, or type `efcpt.cmd`.                                                        |
-| _Login failed_ or _network-related error_ from WSL                     | Use a SQL login or Entra ID, not Windows authentication. Turn on mirrored networking for a server on your own machine (step 4).    |
-| _Microsoft Entra ID sign-in failed_                                    | Run `az login` again, on the same side (Windows or WSL) you run efcpt-ui. Your account must be a user in the database.             |
-| _The certificate chain was issued by an authority that is not trusted_ | Add `TrustServerCertificate=True` to the connection string.                                                                        |
-| Every generated file shows as changed                                  | Update efcpt-ui (above). It keeps your files' line endings. Also check the project's EF Core version matches the engine you built. |
-| Something fixed upstream still happens to you                          | Update your clone and rebuild: [Updating efcpt-ui](#updating-efcpt-ui).                                                            |
-| _no engine found_                                                      | Build the engine for your project's EF Core version (step 2).                                                                      |
+| Message                                                                                                                                     | Fix                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _No executable efcpt found for current version_ (asdf)                                                                                      | The project pins another Node version. Add the shell function from [step 3](#3-add-the-efcpt-command).                                                                                                                                  |
+| `efcpt: command not found`                                                                                                                  | WSL: add the shell function from step 3 and open a new shell. Windows: open a new window after `npm link`.                                                                                                                              |
+| fish: _command substitutions not allowed here_                                                                                              | fish doesn't accept `(...)` as a command name. Use the step 3 function, which writes the path out.                                                                                                                                      |
+| PowerShell: _running scripts is disabled on this system_                                                                                    | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, or type `efcpt.cmd`.                                                                                                                                                             |
+| _Login failed_ or _network-related error_ from WSL                                                                                          | Use a SQL login or Entra ID, not Windows authentication. Turn on mirrored networking for a server on your own machine (step 4).                                                                                                         |
+| _Microsoft Entra ID sign-in failed_                                                                                                         | Run `az login` again, on the same side (Windows or WSL) you run efcpt-ui. Your account must be a user in the database.                                                                                                                  |
+| _The certificate chain was issued by an authority that is not trusted_                                                                      | Add `TrustServerCertificate=True` to the connection string.                                                                                                                                                                             |
+| Every generated file shows as changed                                                                                                       | Update efcpt-ui (above). It keeps your files' line endings. Also check the project's EF Core version matches the engine you built.                                                                                                      |
+| After updating, a few generated files change (for example `DbContextExtensions.cs`, `HasAnnotation("Relational:DefaultConstraintName", …)`) | efcpt-ui uses a newer version of the code generator than the EF Core Power Tools release in Visual Studio. Commit the changes once; teammates who still generate from Visual Studio should update the extension, or it flips them back. |
+| Something fixed upstream still happens to you                                                                                               | Update your clone and rebuild: [Updating efcpt-ui](#updating-efcpt-ui).                                                                                                                                                                 |
+| _no engine found_                                                                                                                           | Build the engine for your project's EF Core version (step 2).                                                                                                                                                                           |
 
 ## Using it in a project
 
@@ -442,16 +443,17 @@ This writes `efcpt-config.json` next to `efpt.config.json` (`efpt.Sales.config.j
 - **Objects**: tables, views, stored procedures and functions, grouped by schema. Tick what to generate, filter by name, select whole groups, expand a table or view to leave out single columns, and add or remove exclusion rules such as `*Log`.
 - **Settings**: the config's options (names, file layout, code generation, type mappings, uncountable words). Options you don't change stay out of the file and keep the engine's defaults. Irregular words and plural/singular rules are edited in the file.
 - **Generate**: saves and runs the engine, showing the generated files, warnings and errors.
-- If no connection string is configured, the UI asks for one. It is kept in memory only, never written to disk.
+- **Connection**: if the project's user secrets hold several connection strings, the UI lets you pick one and remembers the choice in the config. If none is found, it asks for one, keeps it in memory only and never writes it to disk.
 
 The UI runs on `127.0.0.1` only, behind a one-time token in the URL it prints. It stops when you close the tab or press Ctrl+C. Use `--no-open` to not open a browser and `--port` to choose the port.
 
 ### Without the UI
 
 ```bash
-export SALES_DB="Server=.;Database=Sales;Trusted_Connection=True;Encrypt=false"
-npm run db:sales:generate
+efcpt --config ./Data/Sales/efcpt-config.json --generate
 ```
+
+This is what [step 6](#6-refresh-without-the-ui) uses to refresh.
 
 What happens:
 
@@ -459,7 +461,8 @@ What happens:
 2. The EF Core version (8, 9 or 10) comes from the project's `Microsoft.EntityFrameworkCore*` package reference, including central package management. Without one, it comes from the target framework.
 3. The database provider comes from the project's EF Core provider package (for example `Npgsql.EntityFrameworkCore.PostgreSQL`), unless `--provider` or the config says otherwise.
 4. If there is no config yet, efcpt-ui creates `efcpt-config.json` with the project's `RootNamespace`. A config without `names.root-namespace` or `names.dbcontext-name` gets them filled in, and says so.
-5. The matching engine generates code into the project folder, using the config's `file-layout` settings, and adds every database object to the config.
+5. The matching engine generates code into the project folder, using the config's `file-layout` settings. With `refresh-object-lists` on (the default for new configs, off for configs imported from Visual Studio), it also adds new database objects to the config.
+6. Generated files get the line endings of the existing generated code, and the engine's generic `efcpt-readme.md` is deleted.
 
 ## Connection strings
 
@@ -523,15 +526,15 @@ The rules follow the engine exactly. With `refresh-object-lists` on (the default
 
 ## Engine
 
-efcpt runs a .NET engine (a fork of the `efcpt` CLI with a JSON interface) matching the project's EF Core version. It looks for it in this order:
+efcpt-ui runs a .NET engine matching the project's EF Core version. The engine is this repository's build of upstream's `efcpt` dotnet tool, with a JSON interface added (`src/Core/efcpt.8`, shared by 9 and 10). It looks for it in this order:
 
 1. `--engine <path>` (`efcpt.<N>.dll` or an executable)
 2. the `EFCPT_UI_ENGINE` environment variable
 3. an engine built in this repository, when efcpt-ui runs from a checkout (`src/Core/efcpt.<N>/bin/Release` or `Debug`)
-4. the download cache (downloads are coming with the first release)
+4. the download cache (not used yet: engines aren't published for download)
 5. an `efcpt-ui-engine` dotnet tool on `PATH` built for the same EF Core version
 
-Until downloads are available, build it from this repository: `dotnet build src/Core/efcpt.10/efcpt.10.csproj -c Release` (or `efcpt.8` / `efcpt.9`).
+In practice that's 3: the engines you built in step 2. `efcpt --update` rebuilds them when their code changes.
 
 The engine needs the .NET 8 runtime (EF Core 8 and 9) or the .NET 10 runtime (EF Core 10), or newer.
 
@@ -548,6 +551,7 @@ npm test            # unit tests (fake engine)
 npm run build && npm run test:ui   # browser tests of the web UI (Playwright)
 npm run lint && npm run format:check && npm run typecheck
 npm run sync-schema # after changing samples/efcpt-config.schema.json
+npm run update      # what efcpt --update runs (scripts/update.mjs, tested in test/update.test.ts)
 
 # end to end against the real engine, including dotnet build of the generated code, and parity with
 # the Visual Studio extension's code generator (dotnet build src/Core/efreveng100/efreveng100.csproj -c Release)
@@ -556,3 +560,16 @@ EFCPT_UI_E2E_ENGINE=<path to efcpt.10.dll> EFCPT_UI_E2E_BUILD=1 \
 ```
 
 Requires Node 22 or newer.
+
+### Keeping up with upstream EF Core Power Tools
+
+The code generator comes from [ErikEJ/EFCorePowerTools](https://github.com/ErikEJ/EFCorePowerTools). This fork is based on its `master` of 19 Aug 2026 (`b5312dc`) and doesn't update itself. Our changes to upstream's code are small: the JSON and `--list-objects` interface in `src/Core/efcpt.8`, extension data in `CliConfig`, and a one-line fix in `ProcedureScaffolder.cs`. Everything else is new files. To bring in upstream changes:
+
+```bash
+git remote add upstream https://github.com/ErikEJ/EFCorePowerTools   # once
+git fetch upstream master
+git checkout -b sync-upstream origin/master
+git merge upstream/master        # resolve conflicts, then push and open a PR
+```
+
+Merge through a PR, not GitHub's "Sync fork" button, so CI runs. That includes the test that compares an imported config's output with the Visual Studio extension's generator. After it merges, everyone runs `efcpt --update`.

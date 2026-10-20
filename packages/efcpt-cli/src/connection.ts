@@ -226,10 +226,13 @@ export async function userSecretConnectionKeys(options: ConnectionOptions): Prom
 }
 
 export class SeveralConnectionsError extends ConnectionError {
-  constructor(readonly keys: string[]) {
+  /** `where` says where to record the choice; by default the efcpt-cli section of efcpt-config.json. */
+  constructor(
+    readonly keys: string[],
+    where = `efcpt-config.json:\n  "efcpt-cli": { "connection": { "user-secrets": "${keys[0]}" } }`,
+  ) {
     super(
-      `The project's user secrets have several connection strings (${keys.join(', ')}). Choose one in ` +
-        `efcpt-config.json:\n  "efcpt-cli": { "connection": { "user-secrets": "${keys[0]}" } }`,
+      `The project's user secrets have several connection strings (${keys.join(', ')}). Choose one in ${where}`,
     );
   }
 }

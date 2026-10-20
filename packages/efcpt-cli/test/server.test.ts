@@ -277,6 +277,35 @@ describe('UI server API', () => {
     await expect(controller.selectConfig('efpt.Other.config.json')).rejects.toThrow(/Visual Studio/);
   });
 
+  it('records the connection choice for a Visual Studio extension config in efcpt-cli.json', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'efcpt-cli-server-'));
+    await cp(sampleProject, dir, { recursive: true });
+    const env = await withUserSecrets(dir);
+    await rm(path.join(dir, 'efcpt-config.json'));
+    const vsPath = path.join(dir, 'efpt.config.json');
+    await cp(vsFixture, vsPath);
+    const original = await readFile(vsPath, 'utf8');
+    const controller = new UiController({
+      args: parseCliArgs(['--engine', fakeEngine]),
+      env,
+      cwd: dir,
+      io: quiet,
+    });
+    await controller.init();
+    const info = await controller.info();
+    expect(info.connectionChoices).toEqual(['ConnectionStrings:Shop', 'ConnectionStrings:Audit']);
+    // The hint names the file the choice goes in
+    expect(info.warnings.join('\n')).toContain('efcpt-cli.json');
+    expect(info.warnings.join('\n')).not.toContain('efcpt-config.json');
+
+    await controller.useUserSecret('ConnectionStrings:Shop');
+    expect(JSON.parse(await readFile(path.join(dir, 'efcpt-cli.json'), 'utf8'))).toEqual({
+      configs: { 'efpt.config.json': { connection: { 'user-secrets': 'ConnectionStrings:Shop' } } },
+    });
+    expect(await readFile(vsPath, 'utf8')).toBe(original);
+    expect((await controller.info()).connection?.source).toContain('ConnectionStrings:Shop');
+  });
+
   it("offers the connection strings in the project's user secrets and records the choice in the config", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'efcpt-cli-server-'));
     await cp(sampleProject, dir, { recursive: true });

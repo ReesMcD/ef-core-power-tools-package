@@ -1,12 +1,12 @@
 # efcpt-cli: EF Core Power Tools without Visual Studio
 
-Reverse engineer a database into EF Core `DbContext` and entity classes from any .NET project, driven by an `efcpt-config.json`. No Visual Studio needed. The command is `efcpt`: it opens a browser UI to pick tables and options, or generates without it.
+Reverse engineer a database into EF Core `DbContext` and entity classes from any .NET project, driven by the Visual Studio extension's own `efpt.config.json` or an `efcpt-config.json`. No Visual Studio needed. The command is `efcpt`: it opens a browser UI to pick tables and options, or generates without it.
 
 efcpt-cli used to be called efcpt-ui. If you installed it under that name, `efcpt-ui --update` moves you over: see [Coming from efcpt-ui](#coming-from-efcpt-ui).
 
 This is a fork of [EF Core Power Tools](https://github.com/ErikEJ/EFCorePowerTools) by ErikEJ (MIT). It is not the official tool.
 
-> **Status:** in use on the team. The web UI, `--generate`, `--list` and `--import-vs` work, tested against SQL Server (including Windows authentication), PostgreSQL and SQLite. It isn't published to npm: you install it from a clone of this repository (below) and update it with `efcpt --update`.
+> **Status:** in use on the team. The web UI, `--generate` and `--list` work, with the Visual Studio extension's configs as they are, tested against SQL Server (including Windows authentication), PostgreSQL and SQLite. It isn't published to npm: you install it from a clone of this repository (below) and update it with `efcpt --update`.
 
 ## Getting started
 
@@ -298,28 +298,27 @@ The commands are the same in every shell. Use `\` instead of `/` in paths on Win
 ```bash
 cd /path/to/YourProject
 git checkout -b try-efcpt-cli
-efcpt --import-vs efpt.config.json     # only if you used the Visual Studio extension
-efcpt --list                           # read-only: the connection, the engine and what would be generated
-efcpt                                  # opens the UI in your browser: pick tables and options, then Save & Generate
+efcpt --list     # read-only: the connection, the engine and what would be generated
+efcpt            # opens the UI in your browser: pick tables and options, then Save & Generate
 ```
 
-**Several configs** (for example one per database, such as `BFF/efpt.Sales.config.json` and `BFF/efpt.Hr.config.json`): import each one, then name the config with `--config`:
+If the project already has a Visual Studio extension config (`efpt.config.json`), efcpt uses that file as it is. Nothing to convert, and teammates on Visual Studio keep working on the same file. See [Sharing a config with the Visual Studio extension](#sharing-a-config-with-the-visual-studio-extension).
+
+**Several configs** (for example one per database, such as `BFF/efpt.Sales.config.json` and `BFF/efpt.Hr.config.json`): name the config with `--config`:
 
 ```bash
-efcpt --import-vs BFF/efpt.Sales.config.json
-efcpt --import-vs BFF/efpt.Hr.config.json
-efcpt --config BFF/efcpt-config.Sales.json --list
-efcpt --config BFF/efcpt-config.Sales.json
+efcpt --config BFF/efpt.Sales.config.json --list
+efcpt --config BFF/efpt.Sales.config.json
 ```
 
-Imported configs generate the same code as the Visual Studio extension, with the same line endings as your existing files. `git status` shows only what really changed.
+An efpt config generates the same code as the Visual Studio extension, with the same line endings as your existing files. `git status` shows only what really changed.
 
 ### 6. Refresh without the UI
 
 The UI is for choosing tables and options. To regenerate after the database changes, the same as **Refresh** in Visual Studio, use `--generate`. It uses the saved config, generates and exits:
 
 ```bash
-efcpt --config BFF/efcpt-config.Sales.json --generate
+efcpt --config BFF/efpt.Sales.config.json --generate
 ```
 
 To refresh every config in a project or solution with one command, save an `efcpt-refresh` command once:
@@ -327,7 +326,7 @@ To refresh every config in a project or solution with one command, save an `efcp
 ```fish
 # fish
 function efcpt-refresh --description 'Regenerate every efcpt config below this folder'
-    for c in **/efcpt-config*.json
+    for c in **/efpt*.config.json **/efcpt-config*.json
         echo "== $c"
         efcpt --config $c --generate; or return 1
     end
@@ -339,7 +338,7 @@ funcsave efcpt-refresh
 # zsh (for bash, use ~/.bashrc and exec bash)
 cat >> ~/.zshrc <<'EOF'
 efcpt-refresh() {
-  find . -name 'efcpt-config*.json' -not -path '*/bin/*' -not -path '*/obj/*' -not -path '*/node_modules/*' | sort |
+  find . \( -name 'efpt*.config.json' -o -name 'efcpt-config*.json' \) -not -path '*/bin/*' -not -path '*/obj/*' -not -path '*/node_modules/*' | sort |
     while read -r c; do echo "== $c"; efcpt --config "$c" --generate < /dev/null || return 1; done
 }
 EOF
@@ -351,7 +350,7 @@ exec zsh
 if (!(Test-Path $PROFILE)) { New-Item -ItemType File -Force $PROFILE | Out-Null }
 Add-Content $PROFILE @'
 function efcpt-refresh {
-  foreach ($c in Get-ChildItem -Recurse -Filter 'efcpt-config*.json' | Where-Object FullName -notmatch '\\(bin|obj|node_modules)\\') {
+  foreach ($c in Get-ChildItem -Recurse -Include 'efpt*.config.json', 'efcpt-config*.json' | Where-Object FullName -notmatch '\\(bin|obj|node_modules)\\') {
     Write-Host "== $($c.FullName)"
     efcpt --config $c.FullName --generate
     if ($LASTEXITCODE -ne 0) { return }
@@ -363,14 +362,14 @@ function efcpt-refresh {
 
 ```cmd
 :: cmd: no saved command, run this line from the project folder
-for /r %c in (efcpt-config*.json) do call efcpt --config "%c" --generate
+for /r %c in (efpt*.config.json efcpt-config*.json) do call efcpt --config "%c" --generate
 ```
 
 Then run `efcpt-refresh` from your project or solution folder.
 
 Good to know:
 
-- **New tables:** imported configs only generate the tables you selected, as in Visual Studio. To add one, open the UI (`efcpt --config ...`), click **Reload from database**, tick it and generate. To always pick up every new object, set `"refresh-object-lists": true` under `code-generation` in that config.
+- **New tables:** efpt configs only generate the tables you selected, as in Visual Studio. To add one, open the UI (`efcpt --config ...`), click **Reload from database**, tick it and generate. To always pick up every new object, set `"refresh-object-lists": true` under `code-generation` in an efcpt config. In an efpt config, that's the extension's `"UseNoObjectFilter": true`.
 - **Project scripts:** if your project has a `package.json`, you can save these as scripts instead. See [Using it in a project](#using-it-in-a-project).
 - **Exit codes** for scripts and CI: `0` success, `1` generation failed, `2` usage or setup problem.
 
@@ -442,26 +441,46 @@ Run `efcpt` from the project folder, or add one script per config to `package.js
 }
 ```
 
-`npm run db:sales` opens the UI in your browser. Without `--config`, it uses the project's only config, or lets you pick one, create a new one, or import one from the Visual Studio extension.
+`npm run db:sales` opens the UI in your browser. Without `--config`, it uses the project's only config, or lets you pick one or create a new one.
 
-### Coming from the Visual Studio extension
+### Sharing a config with the Visual Studio extension
+
+efcpt reads and saves the extension's `efpt.config.json` (or `efpt.Sales.config.json`, and so on) directly, so a team where some people use Visual Studio and some use efcpt shares one file:
 
 ```bash
-efcpt --import-vs efpt.config.json
+efcpt --config BFF/efpt.Sales.config.json             # the UI
+efcpt --config BFF/efpt.Sales.config.json --generate  # refresh
 ```
 
-This writes `efcpt-config.json` next to `efpt.config.json` (`efpt.Sales.config.json` becomes `efcpt-config.Sales.json`) with the same selected objects and options, and leaves the original alone. The UI offers the same import. The result is the same code the extension generates: a CI test compares the two file by file.
+- **The same code.** It generates exactly what the extension generates: a CI test compares the two file by file, and it was checked against the team's real SQL Server configs.
+- **Small diffs.** Saving from efcpt writes the file the way the extension does (same order, indentation, BOM and line endings) and changes only what you changed. Adding one table adds one entry, in the place the extension would put it. Generating never touches the file.
+- **Only the extension's options.** The UI shows only the options an efpt config can hold, and has no exclusion rules such as `*Log`. Options the extension doesn't have (such as the Mermaid diagram) need an efcpt config.
+- **efcpt's own settings** (which connection to use, line endings) can't go in the efpt file, because the extension rewrites it and drops what it doesn't know. They go in `efcpt-cli.json` next to it, one entry per config:
 
-- As in Visual Studio, only the imported objects are generated and new database objects are not added (`refresh-object-lists` is off). Tick new ones in the UI.
-- `efpt.renaming.json` next to the config keeps working. A config specific `efpt.Sales.renaming.json` is carried over as `"efcpt-cli": { "renaming": "efpt.Sales.renaming.json" }`.
+  ```json
+  {
+    "configs": {
+      "efpt.Sales.config.json": { "connection": { "user-secrets": "ConnectionStrings:Sales" } }
+    }
+  }
+  ```
+
+  The UI writes it when you pick a connection string from the user secrets. Commit it, or leave it out of git if the choice is personal.
+
+- As in Visual Studio, only the selected objects are generated. New database objects show up unticked in the UI.
+- `efpt.renaming.json`, or a config specific `efpt.Sales.renaming.json`, next to the config is used, as in the extension.
 - The connection string is not in `efpt.config.json`; see [Connection strings](#connection-strings).
-- Generated files keep the line endings of the code that is already there, so regenerating from WSL doesn't rewrite every file Visual Studio generated with Windows (CRLF) line endings. Only the files whose code changed show up in `git status`.
+- Generated files keep the line endings of the code that is already there, so regenerating from WSL doesn't rewrite every file Visual Studio generated with Windows (CRLF) line endings.
 - The engine's generic next steps readme (`efcpt-readme.md`: which NuGet packages to add, how to register the `DbContext`) is deleted after each run, so it never shows up in your changes. One left in the project by an older version can be deleted too.
-- Handlebars templates and "no default constructor" are not supported outside Visual Studio. Stored procedure calls are always async. The import warns about these.
+- Handlebars templates and "no default constructor" are not supported outside Visual Studio. Stored procedure calls are always async. efcpt warns about these.
+
+**Used `--import-vs` before?** It made a copy, such as `efcpt-config.Sales.json`, that drifts away from the efpt file as soon as someone edits either one. Switch to the efpt file: run `efcpt --config BFF/efpt.Sales.config.json --generate` once (it copies the copy's settings, such as the connection, into `efcpt-cli.json`), then delete the copy and update any saved commands or scripts. efcpt reminds you while the copy is there.
+
+**Leaving Visual Studio for good?** `efcpt --import-vs efpt.config.json` still converts an efpt config to an `efcpt-config.json`, which has every option. Delete the efpt file afterwards, so there is only one.
 
 ### The UI
 
-- **Objects**: tables, views, stored procedures and functions, grouped by schema. Tick what to generate, filter by name, select whole groups, expand a table or view to leave out single columns, and add or remove exclusion rules such as `*Log`.
+- **Objects**: tables, views, stored procedures and functions, grouped by schema. Tick what to generate, filter by name, select whole groups, expand a table or view to leave out single columns, and add or remove exclusion rules such as `*Log` (efcpt configs only).
 - **Settings**: the config's options (names, file layout, code generation, type mappings, uncountable words). Options you don't change stay out of the file and keep the engine's defaults. Irregular words and plural/singular rules are edited in the file.
 - **Generate**: saves and runs the engine, showing the generated files, warnings and errors.
 - **Connection**: if the project's user secrets hold several connection strings, the UI lets you pick one and remembers the choice in the config. If none is found, it asks for one, keeps it in memory only and never writes it to disk.
@@ -481,8 +500,8 @@ What happens:
 1. The project is the nearest `.csproj` at or above the config (or `--project`).
 2. The EF Core version (8, 9 or 10) comes from the project's `Microsoft.EntityFrameworkCore*` package reference, including central package management. Without one, it comes from the target framework.
 3. The database provider comes from the project's EF Core provider package (for example `Npgsql.EntityFrameworkCore.PostgreSQL`), unless `--provider` or the config says otherwise.
-4. If there is no config yet, efcpt-cli creates `efcpt-config.json` with the project's `RootNamespace`. A config without `names.root-namespace` or `names.dbcontext-name` gets them filled in, and says so.
-5. The matching engine generates code into the project folder, using the config's `file-layout` settings. With `refresh-object-lists` on (the default for new configs, off for configs imported from Visual Studio), it also adds new database objects to the config.
+4. If there is no config yet, efcpt-cli creates `efcpt-config.json` with the project's `RootNamespace`. An efcpt config without `names.root-namespace` or `names.dbcontext-name` gets them filled in, and says so. An efpt config is used as it is.
+5. The matching engine generates code into the project folder, using the config's `file-layout` settings. With `refresh-object-lists` on (the default for new efcpt configs; efpt configs use the extension's `UseNoObjectFilter`), it also adds new database objects to the config.
 6. Generated files get the line endings of the existing generated code, and the engine's generic `efcpt-readme.md` is deleted.
 
 ## Connection strings
@@ -492,7 +511,7 @@ Connection strings are never stored in `efcpt-config.json`. They are looked up i
 1. `--connection "<connection string or path to .dacpac>"`
 2. `--connection-env MY_VAR`
 3. the `EFCPT_CONNECTION` environment variable
-4. an `efcpt-cli` section in the config file that says where to read it from:
+4. an `efcpt-cli` section in the config file that says where to read it from (for an efpt config, the same settings go in [`efcpt-cli.json`](#sharing-a-config-with-the-visual-studio-extension)):
 
 ```jsonc
 {
@@ -593,4 +612,4 @@ git checkout -b sync-upstream origin/master
 git merge upstream/master        # resolve conflicts, then push and open a PR
 ```
 
-Merge through a PR, not GitHub's "Sync fork" button, so CI runs. That includes the test that compares an imported config's output with the Visual Studio extension's generator. After it merges, everyone runs `efcpt --update`.
+Merge through a PR, not GitHub's "Sync fork" button, so CI runs. That includes the test that compares an efpt config's output with the Visual Studio extension's generator. After it merges, everyone runs `efcpt --update`.

@@ -1,5 +1,6 @@
 import schema from '../../schema/efcpt-config.schema.json';
 import type { EfcptConfig } from '../../src/server/api';
+import { engineDefaults } from '../../src/config/vs-options';
 
 export type SectionKey = 'names' | 'file-layout' | 'code-generation' | 'type-mappings' | 'replacements';
 
@@ -33,21 +34,7 @@ const sectionDefinitions: [SectionKey, string, string][] = [
   ['replacements', 'Naming replacements', 'Replacements'],
 ];
 
-/**
- * The engine's defaults (src/GUI/RevEng.Shared/Cli/Configuration/*.cs). Options not listed default to false/empty.
- * The schema's own defaults are incomplete (for example use-nullable-reference-types is true in the engine).
- */
-export const engineDefaults: Record<string, unknown> = {
-  'code-generation.type': 'all',
-  'code-generation.use-inflector': true,
-  'code-generation.use-nullable-reference-types': true,
-  'code-generation.soft-delete-obsolete-files': true,
-  'code-generation.use-stored-procedure-resultset-fallback': true,
-  'code-generation.refresh-object-lists': true,
-  'code-generation.use-decimal-data-annotation-for-sproc-results': true,
-  'code-generation.use-database-names-for-routines': true,
-  'file-layout.output-path': 'Models',
-};
+export { engineDefaults } from '../../src/config/vs-options';
 
 function kindOf(property: SchemaProperty): FieldKind {
   const types = Array.isArray(property.type) ? property.type : [property.type];

@@ -24,6 +24,8 @@ const autoExpandLimit = 150;
 interface Props {
   objects: EngineObject[];
   config: EfcptConfig;
+  /** False for a Visual Studio extension config, which has no exclusion rules. */
+  wildcards?: boolean;
   onChange(config: EfcptConfig): void;
 }
 
@@ -243,7 +245,7 @@ function Group(props: {
   );
 }
 
-export function ObjectTree({ objects, config, onChange }: Props) {
+export function ObjectTree({ objects, config, wildcards = true, onChange }: Props) {
   const [search, setSearch] = useState('');
   const query = search.trim().toLowerCase();
   const visible = useMemo(
@@ -302,9 +304,11 @@ export function ObjectTree({ objects, config, onChange }: Props) {
                 onChange={onChange}
                 defaultOpen
               >
-                <li>
-                  <Wildcards config={config} section={section} objects={objects} onChange={onChange} />
-                </li>
+                {wildcards && (
+                  <li>
+                    <Wildcards config={config} section={section} objects={objects} onChange={onChange} />
+                  </li>
+                )}
                 {schemas.map((schema) => {
                   const inSchema = ofType.filter((o) => (o.schema ?? '') === schema);
                   const rows = inSchema.map((o) => (

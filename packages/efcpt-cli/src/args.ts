@@ -27,17 +27,18 @@ export class UsageError extends Error {
 
 export const helpText = `efcpt (efcpt-cli) - EF Core Power Tools without Visual Studio
 
-Reverse engineer a database into EF Core DbContext and entity classes, driven by an efcpt-config.json.
+Reverse engineer a database into EF Core DbContext and entity classes, driven by the Visual Studio
+extension's efpt.config.json (used as it is, so both tools share it) or an efcpt-config.json.
 
 Usage:
   efcpt [--config <file>] [options]            open the UI in your browser
   efcpt --config <file> --generate [options]   generate code without the UI (for scripts and CI)
   efcpt --config <file> --list [options]       list database objects and which ones the config selects
-  efcpt --import-vs <efpt.config.json>         convert a Visual Studio extension config to efcpt-config.json
+  efcpt --import-vs <efpt.config.json>         convert an efpt.config.json to efcpt-config.json, to stop using it
   efcpt --update                               update efcpt-cli to the latest version (git pull and rebuild)
 
 Options:
-  -c, --config <file>          efcpt-config.json to use. Default: the only efcpt config found in the project,
+  -c, --config <file>          efpt.*.config.json or efcpt-config.json to use. Default: the only config found,
                                or efcpt-config.json in the current folder when there is none yet
   -p, --project <csproj>       .NET project. Default: the nearest .csproj at or above the config
       --connection <string>    Connection string, or path to a .dacpac

@@ -22,8 +22,11 @@ export interface SessionInfo {
   configExists: boolean;
   /** Config files found in the project, relative to the project folder. */
   configs: string[];
-  /** Visual Studio extension configs (efpt.*config.json) not imported yet, relative to the project folder. */
-  vsConfigs: string[];
+  /**
+   * 'vs' when the config is a Visual Studio extension efpt.*.config.json, edited in place. It can't hold every
+   * efcpt option (see vsSettingKeys in config/vs-options.ts).
+   */
+  configKind?: 'efcpt' | 'vs';
   /** Names of the connection strings in the project's user secrets (never the values), when none is chosen yet. */
   connectionChoices: string[];
   project?: ProjectSummary;
@@ -36,6 +39,9 @@ export interface SessionInfo {
 export interface ConfigResponse {
   config: EfcptConfig;
   exists: boolean;
+  kind?: 'efcpt' | 'vs';
+  /** After a save: changes an efpt.*.config.json had no place for. */
+  notSaved?: string[];
 }
 
 export interface ObjectsResponse {
@@ -58,11 +64,6 @@ export interface ConnectionRequest {
 /** POST /api/session: switch to another config (created from a template when it doesn't exist). */
 export interface SelectConfigRequest {
   configPath: string;
-}
-
-/** POST /api/import-vs: create an efcpt config from a Visual Studio extension config and switch to it. */
-export interface ImportVsRequest {
-  vsConfigPath: string;
 }
 
 /** One line of the POST /api/generate response (newline-delimited JSON). */

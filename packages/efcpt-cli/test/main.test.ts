@@ -8,6 +8,7 @@ import { main } from '../src/main.js';
 
 const fakeEngine = fileURLToPath(new URL('./fixtures/fake-engine.mjs', import.meta.url));
 const sampleProject = fileURLToPath(new URL('./fixtures/sample-project', import.meta.url));
+const vsFixture = fileURLToPath(new URL('./fixtures/vs-config/efpt.config.json', import.meta.url));
 
 function capture(): Output & { stdout: string[]; stderr: string[] } {
   const stdout: string[] = [];
@@ -33,6 +34,7 @@ async function env(extra: Record<string, string> = {}): Promise<NodeJS.ProcessEn
 
 afterEach(() => {
   delete process.env['FAKE_ENGINE_MODE'];
+  delete process.env['FAKE_ENGINE_CONFIG_COPY'];
 });
 
 describe('efcpt-cli main', () => {
@@ -217,6 +219,61 @@ describe('efcpt-cli main', () => {
     expect(generate.stderr).toContain(`Created ${configPath}`);
     const created = JSON.parse(await readFile(configPath, 'utf8'));
     expect(created.names).toEqual({ 'dbcontext-name': 'ShopContext', 'root-namespace': 'Sample.Shop' });
+  });
+
+  it('generates from a Visual Studio extension config as it is, without creating another config', async () => {
+    const dir = await copySample();
+    await rm(path.join(dir, 'efcpt-config.json'));
+    const vsPath = path.join(dir, 'efpt.config.json');
+    await cp(vsFixture, vsPath);
+    const original = await readFile(vsPath, 'utf8');
+    const copy = path.join(dir, 'engine-config.json');
+
+    process.env['FAKE_ENGINE_CONFIG_COPY'] = copy;
+    const io = capture();
+    const code = await main(
+      ['--generate', '--engine', fakeEngine, '--connection', 'Data Source=flag.db'],
+      await env(),
+      io,
+      dir,
+    );
+    expect(code, io.stderr.join('\n')).toBe(0);
+    expect(await readFile(vsPath, 'utf8')).toBe(original);
+    await expect(access(path.join(dir, 'efcpt-config.json'))).rejects.toThrow();
+    // The engine got the same selection and options in its own format
+    const engineConfig = JSON.parse(await readFile(copy, 'utf8'));
+    expect(engineConfig.names['dbcontext-name']).toBe('ShopDbContext');
+    expect(engineConfig.tables).toContainEqual({ name: 'Customers' });
+    expect(engineConfig['efcpt-cli']).toBeUndefined();
+  });
+
+  it('moves the settings of an old --import-vs copy into efcpt-cli.json, except with --list', async () => {
+    const dir = await copySample();
+    await rm(path.join(dir, 'efcpt-config.json'));
+    await cp(vsFixture, path.join(dir, 'efpt.config.json'));
+    const ui = { connection: { env: 'SAMPLE_SHOP_DB' } };
+    await writeFile(path.join(dir, 'efcpt-config.json'), JSON.stringify({ 'efcpt-cli': ui }));
+    const settings = path.join(dir, 'efcpt-cli.json');
+    const args = ['--config', 'efpt.config.json', '--engine', fakeEngine];
+    const environment = await env({ SAMPLE_SHOP_DB: 'Data Source=data/shop.db' });
+
+    const list = capture();
+    expect(await main(['--list', ...args], environment, list, dir)).toBe(0);
+    expect(list.stderr.join('\n')).toContain('Run efcpt or --generate once');
+    await expect(access(settings)).rejects.toThrow();
+
+    const generate = capture();
+    expect(await main(['--generate', ...args], environment, generate, dir)).toBe(0);
+    expect(generate.stderr.join('\n')).toContain(
+      'were copied into efcpt-cli.json. Delete efcpt-config.json.',
+    );
+    expect(JSON.parse(await readFile(settings, 'utf8'))).toEqual({ configs: { 'efpt.config.json': ui } });
+
+    // Deleting the copy loses nothing
+    await rm(path.join(dir, 'efcpt-config.json'));
+    const again = capture();
+    expect(await main(['--generate', ...args], environment, again, dir)).toBe(0);
+    expect(again.stderr.join('\n')).not.toContain('import-vs');
   });
 
   it('adds a missing root namespace before generating, so the code does not get `namespace .Models;`', async () => {

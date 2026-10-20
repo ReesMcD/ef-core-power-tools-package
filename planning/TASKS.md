@@ -77,7 +77,7 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 
 ### Differences from the Visual Studio extension (W10)
 
-- **Config format:** the UI edits `efcpt-config.json` (the CLI format), not the extension's `efpt.config.json`. `--import-vs` and the UI convert one (X2).
+- **Config format:** the UI edits either the extension's `efpt.config.json`, in place and in the extension's exact format (X10), or `efcpt-config.json` (the CLI format). `--import-vs` converts one (X2).
 - **Options not in `efcpt-config.json`** (so not in the UI): Handlebars templates, "no default constructor" and "install NuGet packages". "No object filter" imports as `refresh-object-lists`. `IncludeConnectionString` is `enable-on-configuring`.
 - **Renaming** tables and columns (`efpt.renaming.json`) is X1. The engine already applies an existing renaming file.
 - **Search** is plain text; the extension also has a regex mode.
@@ -110,7 +110,8 @@ All work happens in the fork `ReesMcD/ef-core-power-tools-package`: branches, PR
 ## Phase 5: Stretch (unordered)
 
 - [ ] **X1** Rename UI for tables and columns → `efpt.renaming.json` (passed with `-r`)
-- [x] **X2** Importer: VS `efpt.config.json` → `efcpt-config.json` (`--import-vs`, and in the UI's config picker)
+- [x] **X2** Importer: VS `efpt.config.json` → `efcpt-config.json` (`--import-vs`)
+- [x] **X10** Use `efpt.*.config.json` directly, so a team on both tools shares one file: read, generate (through a temporary efcpt-config.json) and save back in the extension's format with minimal diffs (property and table order, indentation, BOM, line endings). efcpt-only settings live in `efcpt-cli.json`; old `--import-vs` copies are flagged and their settings moved over. Checked byte-identical against the team's three real configs
 - [ ] **X3** Diff preview of generated files before writing (generate into a temp folder, then diff)
 - [ ] **X4** Mermaid ER diagram preview (`generate-mermaid-diagram`)
 - [ ] **X5** Build `.sqlproj` / MSBuild.Sdk.SqlProj with `dotnet build` and use the resulting `.dacpac`

@@ -46,6 +46,11 @@ switch (mode) {
         }),
       );
     } else {
+      // Lets a test see the config the engine was given
+      if (process.env.FAKE_ENGINE_CONFIG_COPY) {
+        const { copyFileSync } = await import('node:fs');
+        copyFileSync(args[args.indexOf('-i') + 1], process.env.FAKE_ENGINE_CONFIG_COPY);
+      }
       console.log(JSON.stringify({ ...base, command: 'generate', entityTypeFilePaths: ['/out/Customer.cs'], args }));
     }
     break;

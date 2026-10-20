@@ -1,6 +1,7 @@
 import { mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
-import { defaultFormat, loadConfig, saveConfig } from '../config/io.js';
+import { defaultFormat } from '../config/io.js';
+import { engineConfigFile, loadAnyConfig, saveAnyConfig } from '../config/store.js';
 import { completeNames, createConfigTemplate } from '../config/template.js';
 import { getUiSection, type ResolvedConnection } from '../connection.js';
 import type { GenerateDocument } from '../engine/contract.js';
@@ -37,8 +38,10 @@ export function generateRequest(session: Session, connection: ResolvedConnection
 /**
  * Makes sure the config exists and names a root namespace and DbContext before the engine runs, using the
  * project's RootNamespace (the engine would use the config's folder name, or nothing). Returns what changed.
+ * A Visual Studio efpt.config.json is left as it is, so the code is the same as the extension generates.
  */
 export async function prepareConfig(session: Session, connection: ResolvedConnection): Promise<string[]> {
+  if (session.config?.kind === 'vs') return [];
   const options = {
     rootNamespace: session.project.rootNamespace,
     projectName: path.basename(session.project.projectPath, path.extname(session.project.projectPath)),
@@ -46,15 +49,15 @@ export async function prepareConfig(session: Session, connection: ResolvedConnec
   };
   if (!session.config) {
     await mkdir(path.dirname(session.configPath), { recursive: true });
-    await saveConfig(session.configPath, createConfigTemplate(options), defaultFormat);
-    session.config = await loadConfig(session.configPath);
+    await saveAnyConfig(session.configPath, createConfigTemplate(options), defaultFormat);
+    session.config = await loadAnyConfig(session.configPath);
     return [`Created ${session.configPath}`];
   }
   const config = structuredClone(session.config.config);
   const added = completeNames(config, options);
   if (added.length === 0) return [];
-  await saveConfig(session.configPath, config, session.config.format);
-  session.config = await loadConfig(session.configPath);
+  await saveAnyConfig(session.configPath, config, session.config.format);
+  session.config = await loadAnyConfig(session.configPath);
   const names = config.names as Record<string, unknown>;
   return [
     `Added ${added.map((key) => `names.${key} "${String(names[key])}"`).join(' and ')} to ${path.basename(session.configPath)}`,
@@ -101,7 +104,17 @@ export async function generateInProject(
   // Some file systems store modification times in whole seconds
   const started = Date.now() - 2000;
 
-  const doc = await generate(engine, generateRequest(session, connection), options);
+  const engineConfig = await engineConfigFile(session.configPath, session.config?.config);
+  let doc: GenerateDocument;
+  try {
+    doc = await generate(
+      engine,
+      { ...generateRequest(session, connection), configPath: engineConfig.path },
+      options,
+    );
+  } finally {
+    await engineConfig.dispose();
+  }
   if (doc.readmePath) {
     await removeReadme(doc.readmePath, session);
     delete doc.readmePath;

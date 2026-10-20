@@ -176,12 +176,6 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
         json(response, 200, await controller.info());
         return;
       }
-      case 'POST /api/import-vs': {
-        const body = (await readJsonBody(request)) as { vsConfigPath?: unknown };
-        await controller.importVs(typeof body.vsConfigPath === 'string' ? body.vsConfigPath : '');
-        json(response, 200, await controller.info());
-        return;
-      }
       case 'POST /api/connection-secret': {
         const body = (await readJsonBody(request)) as { key?: unknown };
         await controller.useUserSecret(typeof body.key === 'string' ? body.key : '');
@@ -193,8 +187,8 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
         return;
       case 'PUT /api/config': {
         const body = (await readJsonBody(request)) as { config?: unknown };
-        await controller.saveConfig(body.config);
-        json(response, 200, await controller.getConfig());
+        const notSaved = await controller.saveConfig(body.config);
+        json(response, 200, { ...(await controller.getConfig()), notSaved });
         return;
       }
       case 'GET /api/objects':

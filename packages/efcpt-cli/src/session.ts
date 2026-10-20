@@ -3,8 +3,10 @@ import path from 'node:path';
 import type { CliArgs } from './args.js';
 import { UsageError } from './args.js';
 import { findConfigFiles } from './config/discovery.js';
-import { loadConfig, validateConfig, type LoadedConfig } from './config/io.js';
-import { findVsConfigFiles } from './config/vs-import.js';
+import { validateConfig } from './config/io.js';
+import { loadAnyConfig, type StoredConfig } from './config/store.js';
+import { adoptImportedSettings, isVsConfigPath, vsSettingsFileName } from './config/vs-config.js';
+import { efcptPathFor, findVsConfigFiles } from './config/vs-import.js';
 import { ConnectionError, getUiSection, resolveConnection, type ResolvedConnection } from './connection.js';
 import { findProjectFile, readProject, type ProjectInfo } from './project.js';
 
@@ -12,7 +14,7 @@ import { findProjectFile, readProject, type ProjectInfo } from './project.js';
 export interface Session {
   configPath: string;
   /** Undefined when the config file doesn't exist yet; efcpt creates it on the first generate. */
-  config?: LoadedConfig;
+  config?: StoredConfig;
   project: ProjectInfo;
   connection?: ResolvedConnection;
   provider?: string;
@@ -39,6 +41,40 @@ async function resolveConfigPath(args: CliArgs, cwd: string): Promise<string> {
   );
 }
 
+/**
+ * A config imported with --import-vs and its Visual Studio original are two copies that drift apart as soon as
+ * someone edits one. efcpt uses the original directly, so the copy isn't needed.
+ */
+async function twinWarnings(configPath: string, cwd: string, readOnly: boolean): Promise<string[]> {
+  const show = (p: string) => path.relative(cwd, p);
+  if (isVsConfigPath(configPath)) {
+    const copy = efcptPathFor(configPath);
+    if (!(await exists(copy))) return [];
+    const intro =
+      `${show(copy)} is an old --import-vs copy of ${show(configPath)}. efcpt now uses ` +
+      `${path.basename(configPath)} directly, so everyone shares one file.`;
+    // Keep its efcpt-cli settings (such as the connection), so deleting it loses nothing
+    if (readOnly) {
+      return [
+        `${intro} Run efcpt or --generate once to move its settings into efcpt-cli.json, then delete it.`,
+      ];
+    }
+    const copied = await adoptImportedSettings(configPath);
+    return [
+      `${intro}${copied ? ` Its settings (such as the connection) were copied into ${vsSettingsFileName}.` : ''} ` +
+        `Delete ${path.basename(copy)}.`,
+    ];
+  }
+  for (const vs of await findVsConfigFiles(path.dirname(configPath))) {
+    if (efcptPathFor(vs) !== configPath) continue;
+    return [
+      `${show(configPath)} is a copy of the Visual Studio config ${show(vs)}, and the two drift apart. ` +
+        `Use --config ${show(vs)} instead (efcpt reads and saves it directly) and delete ${path.basename(configPath)}.`,
+    ];
+  }
+  return [];
+}
+
 export interface ResolveOptions {
   /** Report connection problems as warnings instead of failing (the UI lets the user enter one). */
   tolerateConnectionErrors?: boolean;
@@ -51,21 +87,12 @@ export async function resolveSession(
   options: ResolveOptions = {},
 ): Promise<Session> {
   const configPath = await resolveConfigPath(args, cwd);
-  const config = (await exists(configPath)) ? await loadConfig(configPath) : undefined;
-
   const projectPath = args.project ? path.resolve(cwd, args.project) : await findProjectFile(configPath);
   const project = await readProject(projectPath);
+  const config = (await exists(configPath)) ? await loadAnyConfig(configPath, project.efVersion) : undefined;
 
-  const warnings = [...project.warnings];
-  if (!config) {
-    const vsConfigs = await findVsConfigFiles(project.projectDir);
-    if (vsConfigs.length > 0) {
-      warnings.push(
-        `No efcpt config yet, but found the Visual Studio extension's ${vsConfigs.map((f) => path.relative(cwd, f)).join(', ')}. ` +
-          `Convert it with: efcpt --import-vs ${path.relative(cwd, vsConfigs[0]!)}`,
-      );
-    }
-  }
+  const warnings = [...project.warnings, ...(config?.warnings ?? [])];
+  warnings.push(...(await twinWarnings(configPath, cwd, args.list)));
   if (config) {
     // efcpt accepts files the schema calls incomplete, so these are only warnings
     warnings.push(

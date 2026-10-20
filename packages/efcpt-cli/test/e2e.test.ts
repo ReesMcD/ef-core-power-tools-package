@@ -164,14 +164,14 @@ describe.runIf(engine && reveng)('parity with the Visual Studio extension', () =
     const run = spawnSync('dotnet', [reveng!, optionsFile], { encoding: 'utf8', timeout: 300_000 });
     expect(run.stdout.trimStart().startsWith('Result:'), `${run.stdout}\n${run.stderr}`).toBe(true);
 
-    // efcpt-cli
+    // efcpt-cli, using the extension's config as it is
     const env = { ...process.env, EFCPT_CLI_SKIP_CHECKOUT_ENGINE: '1' };
-    const imported = capture();
-    expect(await main(['--import-vs', 'efpt.config.json'], env, imported, uiDir)).toBe(0);
+    const vsConfig = await readFile(path.join(uiDir, 'efpt.config.json'), 'utf8');
     const gen = capture();
     const connection = `Data Source=${path.join(uiDir, 'shop.db')}`;
     const code = await main(['--generate', '--engine', engine!, '--connection', connection], env, gen, uiDir);
     expect(code, gen.stderr.join('\n')).toBe(0);
+    expect(await readFile(path.join(uiDir, 'efpt.config.json'), 'utf8')).toBe(vsConfig);
 
     const expected = await sources(vsDir);
     expect(expected.size).toBeGreaterThan(0);
@@ -275,7 +275,6 @@ describe.runIf(engine && mssql)('SQL Server', () => {
       const run = spawnSync('dotnet', [reveng, optionsFile], { encoding: 'utf8', timeout: 300_000 });
       expect(run.stdout.trimStart().startsWith('Result:'), `${run.stdout}\n${run.stderr}`).toBe(true);
 
-      expect(await main(['--import-vs', 'efpt.config.json'], env, capture(), uiDir)).toBe(0);
       const ui = capture();
       const code = await main(['--generate', '--engine', engine!, '--connection', mssql!], env, ui, uiDir);
       expect(code, ui.stderr.join('\n')).toBe(0);

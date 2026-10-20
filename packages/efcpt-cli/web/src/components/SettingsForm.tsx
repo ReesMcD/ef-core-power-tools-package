@@ -8,10 +8,13 @@ import {
   type Field,
   type SectionKey,
 } from '../settings';
+import { vsSettingKeys } from '../../../src/config/vs-options';
 
 interface Props {
   config: EfcptConfig;
   isDacpac: boolean;
+  /** Editing a Visual Studio extension efpt.*.config.json: only the options it can hold are shown. */
+  vs?: boolean;
   onChange(config: EfcptConfig): void;
 }
 
@@ -123,14 +126,30 @@ function FieldInput(props: {
   }
 }
 
-export function SettingsForm({ config, isDacpac, onChange }: Props) {
+export function SettingsForm({ config, isDacpac, vs, onChange }: Props) {
+  const shown = sections
+    .map((section) => ({
+      ...section,
+      fields: vs
+        ? section.fields.filter((f) => vsSettingKeys.includes(`${section.key}.${f.key}`))
+        : section.fields,
+    }))
+    .filter((section) => section.fields.length > 0);
   return (
     <div className="settings">
-      <p className="hint">
-        Options you don&apos;t change stay out of the config file and use the engine&apos;s defaults.
-        &ldquo;default&rdquo; removes an option again.
-      </p>
-      {sections.map((section) => (
+      {vs ? (
+        <p className="hint">
+          This is the Visual Studio extension&apos;s config, so it stays in the extension&apos;s format and
+          both tools can use it. Only the options the extension has are shown; &ldquo;default&rdquo; sets an
+          option back to the engine&apos;s default.
+        </p>
+      ) : (
+        <p className="hint">
+          Options you don&apos;t change stay out of the config file and use the engine&apos;s defaults.
+          &ldquo;default&rdquo; removes an option again.
+        </p>
+      )}
+      {shown.map((section) => (
         <fieldset key={section.key}>
           <legend>{section.title}</legend>
           {section.fields.map((field) => (

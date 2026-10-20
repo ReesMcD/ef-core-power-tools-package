@@ -1,5 +1,5 @@
 // Browser tests of the built web UI (dist/web, run `npm run build` first) against the fake engine.
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -193,31 +193,44 @@ test('lets you pick one of several configs, or create a new one', async ({ page 
   expect(created.names).toEqual({ 'dbcontext-name': 'SampleContext', 'root-namespace': 'Sample.Shop' });
 });
 
-test('imports a Visual Studio extension config', async ({ page }) => {
+test('edits a Visual Studio extension config in place', async ({ page }) => {
   const ui = await startUi({
     setup: async (dir) => {
       await rm(path.join(dir, 'efcpt-config.json'));
-      // The VS config selects Customers and Orders, but not the BigOrders view
-      const vs = JSON.parse((await readFile(vsFixture, 'utf8')).replace(/^\uFEFF/, ''));
-      vs.Tables = vs.Tables.filter((t: { Name: string }) => t.Name !== 'BigOrders');
-      await writeFile(path.join(dir, 'efpt.config.json'), JSON.stringify(vs));
+      await writeFile(path.join(dir, 'efpt.config.json'), await readFile(vsFixture));
     },
   });
+  const vsPath = path.join(ui.dir, 'efpt.config.json');
+  const original = JSON.parse((await readFile(vsPath, 'utf8')).replace(/^\uFEFF/, ''));
   await page.goto(ui.url);
 
-  await expect(page.getByRole('heading', { name: 'Choose a config' })).toBeVisible();
-  await page.getByRole('button', { name: 'Import efpt.config.json' }).click();
-  await expect(page.getByLabel('Config file')).toHaveValue('efcpt-config.json');
-
-  // The VS config has no connection
+  // The only config, so it opens directly. It has no connection.
+  await expect(page.getByLabel('Config file')).toHaveValue('efpt.config.json');
   await expect(page.getByRole('heading', { name: 'Database connection' })).toBeVisible();
   await page.getByLabel('Connection string, or path to a .dacpac').fill('Data Source=shop.db');
   await page.getByRole('button', { name: 'Connect' }).click();
 
-  // As in Visual Studio, only the listed objects are generated
+  // As in Visual Studio, only the listed objects are generated. Exclusion rules aren't offered.
   await expect(page.getByRole('checkbox', { name: 'Customers', exact: true })).toBeChecked();
-  await expect(page.getByRole('checkbox', { name: 'BigOrders', exact: true })).not.toBeChecked();
-  expect((await ui.config()).names['dbcontext-name']).toBe('ShopDbContext');
+  await expect(page.getByRole('checkbox', { name: 'BigOrders', exact: true })).toBeChecked();
+  await expect(page.getByLabel('New exclusion rule')).toHaveCount(0);
+  await page.getByRole('checkbox', { name: 'BigOrders', exact: true }).uncheck();
+
+  // Only the options the extension has are shown
+  await page.getByRole('tab', { name: 'Settings' }).click();
+  await expect(page.getByText(/Visual Studio extension's config/)).toBeVisible();
+  await expect(page.getByLabel(/Mermaid ER diagram/)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Unsaved changes')).toHaveCount(0);
+
+  const savedText = await readFile(vsPath, 'utf8');
+  expect(savedText.startsWith('\uFEFF')).toBe(true);
+  const saved = JSON.parse(savedText.replace(/^\uFEFF/, ''));
+  expect(saved).toEqual({
+    ...original,
+    Tables: original.Tables.filter((t: { Name: string }) => t.Name !== 'BigOrders'),
+  });
+  await expect(access(path.join(ui.dir, 'efcpt-config.json'))).rejects.toThrow();
 });
 
 test("uses a connection string from the project's user secrets, and saves the choice", async ({ page }) => {

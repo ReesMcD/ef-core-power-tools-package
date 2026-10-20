@@ -129,7 +129,7 @@ We never write a plain-text connection string into `efcpt-config.json`.
    - **For now (2026-10):** the tool is only used on the team, without a package registry. Everyone installs from a clone and builds the engines there; efcpt-ui finds engines built in its checkout, and `efcpt --update` pulls and rebuilds what changed. Downloads (c) stay planned for a public release (R5, X6).
 3. ~~**Upstream contribution.**~~ **Decided: all work stays in the fork** (`ReesMcD/ef-core-power-tools-package`). We don't open PRs against or publish to `ErikEJ/EFCorePowerTools`. We only _pull_ upstream changes into the fork. Our engine is built and shipped from the fork (see task F8).
 4. ~~**UI stack.**~~ **Decided and built: Vite + React + TypeScript.**
-5. ~~**Config file naming.**~~ **Decided: `efcpt-config.json` only**, plus an importer for the VS format (`efcpt --import-vs`, X2). Imported configs generate the same code as the extension (R8).
+5. ~~**Config file naming.**~~ **Decided: both.** The extension's `efpt.*.config.json` is used in place (X10), so mixed teams share one file; `efcpt-config.json` has every option. `efcpt --import-vs` converts (X2). Both generate the same code as the extension (R8).
 6. ~~**Minimum Node version.**~~ **Decided: Node 22 or newer.** Node 20 reached end of life in April 2026, and the test tooling (Vitest 5) needs 22.12+.
 7. **Keeping up with upstream.** Merged by hand through a PR (U1): the fork was based on upstream `b5312dc` (19 Aug 2026) and merged upstream `f190200` (14 Oct 2026), with three small conflicts in the engine CLI. Still open: whether a scheduled workflow should open that PR.
 

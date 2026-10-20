@@ -25,6 +25,8 @@ export function App() {
   const [error, setError] = useState<string>();
   const [editConnection, setEditConnection] = useState(false);
   const [picking, setPicking] = useState(false);
+  /** What the last save couldn't store (a Visual Studio extension config has no place for some options). */
+  const [notSaved, setNotSaved] = useState<string[]>([]);
   const [run, setRun] = useState<{
     running: boolean;
     log: string[];
@@ -54,6 +56,7 @@ export function App() {
     async (info: SessionInfo) => {
       setSession(info);
       setObjects(undefined);
+      setNotSaved([]);
       setRun({ running: false, log: [] });
       if (!info.configPath) return;
       await loadConfig();
@@ -101,20 +104,6 @@ export function App() {
     }
   };
 
-  const importVs = async (path: string) => {
-    if (dirty && !window.confirm('Discard unsaved changes?')) return;
-    setBusy(true);
-    setError(undefined);
-    try {
-      await loadSession(await api.importVs(path));
-      setPicking(false);
-    } catch (e) {
-      setError(describe(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const connect = async (connection: string, provider: string) => {
     setBusy(true);
     setError(undefined);
@@ -136,6 +125,7 @@ export function App() {
     setError(undefined);
     try {
       const response = await api.saveConfig(config);
+      setNotSaved(response.notSaved ?? []);
       setConfig(response.config);
       setSaved(JSON.stringify(response.config));
       setSession(await api.session());
@@ -239,9 +229,9 @@ export function App() {
       </header>
 
       <main>
-        {session.warnings.length > 0 && (
+        {(session.warnings.length > 0 || notSaved.length > 0) && (
           <ul className="warnings">
-            {session.warnings.map((w) => (
+            {[...session.warnings, ...notSaved].map((w) => (
               <li key={w}>{w}</li>
             ))}
           </ul>
@@ -252,7 +242,6 @@ export function App() {
             busy={busy}
             error={error}
             onSelect={(p) => void selectConfig(p)}
-            onImport={(p) => void importVs(p)}
             onCancel={picking ? () => setPicking(false) : undefined}
           />
         ) : needsConnection ? (
@@ -288,7 +277,12 @@ export function App() {
                       Reload from database
                     </button>
                   </div>
-                  <ObjectTree objects={objects.objects} config={config} onChange={setConfig} />
+                  <ObjectTree
+                    objects={objects.objects}
+                    config={config}
+                    wildcards={session.configKind !== 'vs'}
+                    onChange={setConfig}
+                  />
                 </>
               ) : objectsError ? (
                 <div className="error">
@@ -304,6 +298,7 @@ export function App() {
               <SettingsForm
                 config={config}
                 isDacpac={session.connection?.isDacpac ?? false}
+                vs={session.configKind === 'vs'}
                 onChange={setConfig}
               />
             )}

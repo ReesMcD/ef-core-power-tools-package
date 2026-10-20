@@ -23,7 +23,10 @@ describe('config discovery', () => {
     expect(isConfigFileName('efcpt-config.sales.json')).toBe(true);
     expect(isConfigFileName('billing.efcpt.json')).toBe(true);
     expect(isConfigFileName('efcpt-config.schema.json')).toBe(false);
-    expect(isConfigFileName('efpt.config.json')).toBe(false);
+    // The Visual Studio extension's configs are used as they are
+    expect(isConfigFileName('efpt.config.json')).toBe(true);
+    expect(isConfigFileName('efpt.Sales.config.json')).toBe(true);
+    expect(isConfigFileName('efpt.renaming.json')).toBe(false);
     expect(isConfigFileName('appsettings.json')).toBe(false);
   });
 

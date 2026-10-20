@@ -2,7 +2,7 @@
 
 > ## This fork: efcpt-cli, no Visual Studio needed
 >
-> This fork adds **efcpt-cli** (command `efcpt`): run EF Core Power Tools' reverse engineering from any .NET project, from Windows (cmd or PowerShell) or WSL, with a browser UI to pick tables and options, driven by `efcpt-config.json`. It can import your Visual Studio extension config (`efpt.config.json`) and generates the same code. Full guide: [packages/efcpt-cli/README.md](packages/efcpt-cli/README.md).
+> This fork adds **efcpt-cli** (command `efcpt`): run EF Core Power Tools' reverse engineering from any .NET project, from Windows (cmd or PowerShell) or WSL, with a browser UI to pick tables and options, using your Visual Studio extension config (`efpt.config.json`) as it is, so people on Visual Studio and on efcpt share one file and get the same code. Or use an `efcpt-config.json`. Full guide: [packages/efcpt-cli/README.md](packages/efcpt-cli/README.md).
 >
 > **Getting started:** [step-by-step guide](packages/efcpt-cli/README.md#getting-started) with commands to copy and paste for:
 >
@@ -14,10 +14,9 @@
 > In short: install .NET 10, Node 22+ and git, then clone this repository, build the engine and efcpt-cli, and run it in your project:
 >
 > ```bash
-> efcpt --import-vs efpt.config.json     # if you used the Visual Studio extension
-> efcpt                                  # pick tables and options in your browser
-> efcpt --config efcpt-config.json --generate   # later: refresh without the UI
-> efcpt --update                         # after new changes are pushed here
+> efcpt                                         # pick tables and options in your browser
+> efcpt --config efpt.config.json --generate    # later: refresh without the UI
+> efcpt --update                                # after new changes are pushed here
 > ```
 >
 > - The connection string is read from the project's user secrets, like your app does. Other options are in [Connection strings](packages/efcpt-cli/README.md#connection-strings).

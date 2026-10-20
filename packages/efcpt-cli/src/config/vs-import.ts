@@ -4,6 +4,7 @@ import { access, readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ConfigError, type EfcptConfig } from './io.js';
 import { schemaUrl } from './template.js';
+import { vsOptions, type OptionSection } from './vs-options.js';
 
 const skippedDirectories = new Set(['bin', 'obj', 'node_modules', '.git', '.vs', '.idea']);
 
@@ -36,7 +37,7 @@ export function efcptPathFor(vsConfigPath: string): string {
   return path.join(path.dirname(vsConfigPath), middle ? `efcpt-config.${middle}.json` : 'efcpt-config.json');
 }
 
-type VsConfig = Record<string, unknown>;
+export type VsConfig = Record<string, unknown>;
 
 interface VsObject {
   Name?: string;
@@ -78,89 +79,24 @@ export function convertVsConfig(
   const warnings: string[] = [];
   const has = (key: string) => vs[key] !== undefined;
   const bool = (key: string) => vs[key] === true;
-  const text = (key: string) => (typeof vs[key] === 'string' && vs[key] !== '' ? (vs[key] as string) : null);
 
-  const section = (
-    target: Record<string, unknown>,
-    pairs: [string, string, ((v: unknown) => unknown)?][],
-  ) => {
-    for (const [from, to, map] of pairs) {
-      if (has(from)) target[to] = map ? map(vs[from]) : vs[from];
-    }
-    return target;
+  // Options, grouped by efcpt-config.json section in the table's order
+  const sections: Record<OptionSection, Record<string, unknown>> = {
+    names: {},
+    'code-generation': {},
+    'file-layout': {},
+    'type-mappings': {},
+    replacements: {},
   };
-
-  const names = section({}, [
-    ['ContextClassName', 'dbcontext-name'],
-    ['ContextNamespace', 'dbcontext-namespace', () => text('ContextNamespace')],
-    ['ModelNamespace', 'model-namespace', () => text('ModelNamespace')],
-    ['ProjectRootNamespace', 'root-namespace'],
-  ]);
-
-  const codeGeneration = section({}, [
-    ['IncludeConnectionString', 'enable-on-configuring'],
-    ['SelectedToBeGenerated', 'type', (v) => ({ 1: 'dbcontext', 2: 'entities' })[v as number] ?? 'all'],
-    ['UseDatabaseNames', 'use-database-names'],
-    ['UseFluentApiOnly', 'use-data-annotations', (v) => v === false],
-    ['UseNullableReferences', 'use-nullable-reference-types'],
-    ['UseInflector', 'use-inflector'],
-    ['UseLegacyPluralizer', 'use-legacy-inflector'],
-    ['UseManyToManyEntity', 'use-many-to-many-entity'],
-    ['UseT4', 'use-t4'],
-    ['UseT4Split', 'use-t4-split'],
-    ['T4TemplatePath', 't4-template-path', () => text('T4TemplatePath')],
-    ['UseBoolPropertiesWithoutDefaultSql', 'remove-defaultsql-from-bool-properties'],
-    ['UseNoNavigations', 'use-no-navigations-preview'],
-    ['UseDecimalDataAnnotationForSprocResult', 'use-decimal-data-annotation-for-sproc-results'],
-    ['UsePrefixNavigationNaming', 'use-prefix-navigation-naming'],
-    ['UseDatabaseNamesForRoutines', 'use-database-names-for-routines'],
-    [
-      'UseInternalAccessModifiersForSprocsAndFunctions',
-      'use-internal-access-modifiers-for-sprocs-and-functions',
-    ],
-    ['UseTypedTvpParameters', 'use-typed-tvp-parameters'],
-  ]);
-
-  const fileLayout = section({}, [
-    ['OutputPath', 'output-path', () => text('OutputPath')],
-    ['OutputContextPath', 'output-dbcontext-path', () => text('OutputContextPath')],
-    ['UseDbContextSplitting', 'split-dbcontext-preview'],
-    ['UseSchemaFolders', 'use-schema-folders-preview'],
-    ['UseSchemaNamespaces', 'use-schema-namespaces-preview'],
-  ]);
-
-  const typeMappings = section({}, [
-    ['UseDateOnlyTimeOnly', 'use-DateOnly-TimeOnly'],
-    ['UseHierarchyId', 'use-HierarchyId'],
-    ['UseSpatial', 'use-spatial'],
-    ['UseNodaTime', 'use-NodaTime'],
-  ]);
-
-  const rules = (v: unknown) =>
-    Array.isArray(v)
-      ? (v as { Rule?: string; Replacement?: string }[]).map((r) => ({
-          rule: r.Rule,
-          replacement: r.Replacement,
-        }))
-      : null;
-  const replacements = section({}, [
-    ['PreserveCasingWithRegex', 'preserve-casing-with-regex'],
-    [
-      'IrregularWords',
-      'irregular-words',
-      (v) =>
-        Array.isArray(v)
-          ? (v as { Singular?: string; Plural?: string; MatchEnding?: boolean }[]).map((w) => ({
-              singular: w.Singular,
-              plural: w.Plural,
-              'match-ending': w.MatchEnding ?? true,
-            }))
-          : null,
-    ],
-    ['UncountableWords', 'uncountable-words', (v) => (Array.isArray(v) ? v : null)],
-    ['PluralRules', 'plural-rules', rules],
-    ['SingularRules', 'singular-rules', rules],
-  ]);
+  for (const option of vsOptions) {
+    if (!has(option.vs)) continue;
+    sections[option.section][option.key] = option.toEfcpt ? option.toEfcpt(vs[option.vs]) : vs[option.vs];
+  }
+  const names = sections.names;
+  const codeGeneration = sections['code-generation'];
+  const fileLayout = sections['file-layout'];
+  const typeMappings = sections['type-mappings'];
+  const replacements = sections.replacements;
   for (const [key, value] of Object.entries(replacements)) if (value === null) delete replacements[key];
 
   // The VS extension generates exactly the listed objects and never adds new ones, unless "no object filter"
@@ -236,26 +172,38 @@ async function exists(file: string): Promise<boolean> {
   );
 }
 
-/** Reads and converts a VS extension config file. */
-export async function importVsConfig(
-  vsConfigPath: string,
-  projectEfVersion?: number,
-): Promise<VsImportResult> {
-  let vs: VsConfig;
+/** Parses an efpt.config.json. */
+export function parseVsConfig(text: string, vsConfigPath: string): VsConfig {
+  let vs: unknown;
   try {
-    vs = JSON.parse((await readFile(vsConfigPath, 'utf8')).replace(/^\uFEFF/, '')) as VsConfig;
+    vs = JSON.parse(text.replace(/^\uFEFF/, ''));
   } catch (error) {
     throw new ConfigError(`Cannot read ${vsConfigPath}: ${(error as Error).message}`, vsConfigPath);
   }
   if (typeof vs !== 'object' || vs === null || Array.isArray(vs)) {
     throw new ConfigError(`${vsConfigPath} is not an EF Core Power Tools config`, vsConfigPath);
   }
+  return vs as VsConfig;
+}
 
-  // efpt.Sales.config.json uses efpt.Sales.renaming.json when it exists (CustomNameOptionsExtensions.TryRead)
+/** efpt.Sales.config.json uses efpt.Sales.renaming.json when it exists (CustomNameOptionsExtensions.TryRead). */
+export async function renamingFileFor(vsConfigPath: string): Promise<string | undefined> {
   const middle = /^efpt\.(.+)\.config\.json$/i.exec(path.basename(vsConfigPath))?.[1];
   const specific = middle ? `efpt.${middle}.renaming.json` : undefined;
-  const renamingFile =
-    specific && (await exists(path.join(path.dirname(vsConfigPath), specific))) ? specific : undefined;
+  return specific && (await exists(path.join(path.dirname(vsConfigPath), specific))) ? specific : undefined;
+}
 
-  return convertVsConfig(vs, { projectEfVersion, renamingFile });
+/** Reads and converts a VS extension config file. */
+export async function importVsConfig(
+  vsConfigPath: string,
+  projectEfVersion?: number,
+): Promise<VsImportResult> {
+  let text: string;
+  try {
+    text = await readFile(vsConfigPath, 'utf8');
+  } catch (error) {
+    throw new ConfigError(`Cannot read ${vsConfigPath}: ${(error as Error).message}`, vsConfigPath);
+  }
+  const vs = parseVsConfig(text, vsConfigPath);
+  return convertVsConfig(vs, { projectEfVersion, renamingFile: await renamingFileFor(vsConfigPath) });
 }

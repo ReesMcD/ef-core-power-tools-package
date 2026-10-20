@@ -239,27 +239,42 @@ describe('UI server API', () => {
     expect((await controller.info()).configs).toContain(path.join('Data', 'Sales', 'efcpt-config.json'));
   });
 
-  it('offers and imports Visual Studio extension configs, only from the project', async () => {
+  it('opens a Visual Studio extension config directly and saves back into it', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'efcpt-cli-server-'));
     await cp(sampleProject, dir, { recursive: true });
     await rm(path.join(dir, 'efcpt-config.json'));
-    await cp(vsFixture, path.join(dir, 'efpt.config.json'));
+    const vsPath = path.join(dir, 'efpt.config.json');
+    await cp(vsFixture, vsPath);
+    const original = await readFile(vsPath, 'utf8');
 
     const controller = new UiController({
       args: parseCliArgs(['--engine', fakeEngine]),
-      env: {},
+      env: { SAMPLE_SHOP_DB: 'Data Source=/data/shop.db' },
       cwd: dir,
       io: quiet,
     });
     await controller.init();
-    expect((await controller.info()).vsConfigs).toEqual(['efpt.config.json']);
-
-    await expect(controller.importVs('../elsewhere/efpt.config.json')).rejects.toThrow(/not a Visual Studio/);
-    await controller.importVs('efpt.config.json');
     const info = await controller.info();
-    expect(info.configPath).toBe(path.join(dir, 'efcpt-config.json'));
-    expect(info.vsConfigs).toEqual([]); // imported: no longer offered
-    expect((await controller.getConfig()).config.names?.['dbcontext-name']).toBe('ShopDbContext');
+    expect(info.configs).toEqual(['efpt.config.json']);
+    expect(info.configPath).toBe(vsPath);
+    expect(info.configKind).toBe('vs');
+    const { config, kind } = await controller.getConfig();
+    expect(kind).toBe('vs');
+    expect(config.names?.['dbcontext-name']).toBe('ShopDbContext');
+
+    // Saving changes only what changed, in the extension's format; options it can't hold are reported
+    const edited = structuredClone(config);
+    edited.names!['dbcontext-name'] = 'StoreDbContext';
+    edited['code-generation']!['generate-mermaid-diagram'] = true;
+    const notSaved = await controller.saveConfig(edited);
+    expect(notSaved.join('\n')).toContain('generate-mermaid-diagram');
+    const saved = await readFile(vsPath, 'utf8');
+    expect(saved).toBe(original.replace('"ShopDbContext"', '"StoreDbContext"'));
+    await expect(readFile(path.join(dir, 'efcpt-config.json'), 'utf8')).rejects.toThrow();
+    expect((await controller.getConfig()).config.names?.['dbcontext-name']).toBe('StoreDbContext');
+
+    // A new config can't be created under an efpt name, since it would be in efcpt's format
+    await expect(controller.selectConfig('efpt.Other.config.json')).rejects.toThrow(/Visual Studio/);
   });
 
   it("offers the connection strings in the project's user secrets and records the choice in the config", async () => {

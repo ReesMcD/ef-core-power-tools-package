@@ -1,19 +1,12 @@
 import { access, mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { UsageError, type CliArgs } from '../args.js';
+import type { CliArgs } from '../args.js';
 import { generateInProject, generateTimeoutMs, prepareConfig } from '../commands/generate.js';
 import { prepareEngine, type Output } from '../commands/common.js';
 import { findConfigFiles } from '../config/discovery.js';
-import { efcptPathFor, findVsConfigFiles } from '../config/vs-import.js';
-import { importVs } from '../commands/import-vs.js';
-import {
-  ConfigError,
-  defaultFormat,
-  loadConfig,
-  saveConfig,
-  validateConfig,
-  type EfcptConfig,
-} from '../config/io.js';
+import { loadAnyConfig, saveAnyConfig } from '../config/store.js';
+import { isVsConfigPath } from '../config/vs-config.js';
+import { ConfigError, defaultFormat, saveConfig, validateConfig, type EfcptConfig } from '../config/io.js';
 import { createConfigTemplate } from '../config/template.js';
 import { getUiSection, setUiSection, userSecretConnectionKeys } from '../connection.js';
 import type { Engine } from '../engine/locate.js';
@@ -134,10 +127,6 @@ export class UiController {
       const relative = path.relative(this.rootDir, session.configPath);
       if (!configs.includes(relative) && !relative.startsWith('..')) configs.push(relative);
     }
-    const vsConfigs: string[] = [];
-    for (const file of await findVsConfigFiles(this.rootDir)) {
-      if (!(await exists(efcptPathFor(file)))) vsConfigs.push(path.relative(this.rootDir, file));
-    }
     const connectionChoices =
       session && !session.connection
         ? await userSecretConnectionKeys({
@@ -152,7 +141,7 @@ export class UiController {
       configPath: session?.configPath,
       configExists: Boolean(session?.config),
       configs: configs.sort(),
-      vsConfigs,
+      configKind: session?.config?.kind,
       project: session && {
         path: session.project.projectPath,
         name: path.basename(session.project.projectPath, path.extname(session.project.projectPath)),
@@ -169,34 +158,21 @@ export class UiController {
     };
   }
 
-  /** Creates an efcpt config from one of the project's Visual Studio extension configs and switches to it. */
-  async importVs(vsConfigPath: string): Promise<void> {
-    const full = path.resolve(this.rootDir, vsConfigPath);
-    if (!(await findVsConfigFiles(this.rootDir)).includes(full)) {
-      throw new RequestError(`${vsConfigPath} is not a Visual Studio extension config in this project`, 404);
-    }
-    let imported;
-    try {
-      imported = await importVs(full, {
-        projectPath: this.options.args.project
-          ? path.resolve(this.options.cwd, this.options.args.project)
-          : undefined,
-      });
-    } catch (error) {
-      if (error instanceof UsageError) throw new RequestError(error.message, 409);
-      throw error;
-    }
-    await this.load(imported.target);
-    this.session!.warnings.push(...imported.warnings);
-  }
-
   /** Switches to another config. A path that doesn't exist yet gets a new config from the template. */
   async selectConfig(configPath: string): Promise<void> {
     if (!configPath || !configPath.toLowerCase().endsWith('.json')) {
       throw new RequestError('The config file name must end with .json');
     }
     const full = path.resolve(this.rootDir, configPath);
-    if (!(await exists(full))) await this.createConfig(full);
+    if (!(await exists(full))) {
+      if (isVsConfigPath(full)) {
+        throw new RequestError(
+          `${configPath} doesn't exist. efpt.*.config.json files are created by the Visual Studio extension; ` +
+            'name a new efcpt config something like efcpt-config.json',
+        );
+      }
+      await this.createConfig(full);
+    }
     this.connectionOverride = undefined;
     await this.load(full);
   }
@@ -221,7 +197,11 @@ export class UiController {
 
   async getConfig(): Promise<ConfigResponse> {
     const session = this.requireSession();
-    return { config: session.config?.config ?? {}, exists: Boolean(session.config) };
+    return {
+      config: session.config?.config ?? {},
+      exists: Boolean(session.config),
+      kind: session.config?.kind,
+    };
   }
 
   /**
@@ -237,12 +217,13 @@ export class UiController {
     const config = structuredClone(session.config?.config ?? {});
     setUiSection(config, { ...getUiSection(config), connection: { 'user-secrets': key } });
     await mkdir(path.dirname(session.configPath), { recursive: true });
-    await saveConfig(session.configPath, config, session.config?.format ?? defaultFormat);
+    await saveAnyConfig(session.configPath, config, session.config?.format ?? defaultFormat);
     this.connectionOverride = undefined;
     await this.load(session.configPath);
   }
 
-  async saveConfig(config: unknown): Promise<void> {
+  /** Returns what couldn't be saved (an efpt.*.config.json has no place for some options). */
+  async saveConfig(config: unknown): Promise<string[]> {
     const session = this.requireSession();
     if (typeof config !== 'object' || config === null || Array.isArray(config)) {
       throw new RequestError('config must be a JSON object');
@@ -250,13 +231,18 @@ export class UiController {
     const problems = validateConfig(config as EfcptConfig);
     if (problems.length > 0) throw new RequestError('The config has invalid values', 400, problems);
 
-    await saveConfig(session.configPath, config as EfcptConfig, session.config?.format ?? defaultFormat);
+    const notSaved = await saveAnyConfig(
+      session.configPath,
+      config as EfcptConfig,
+      session.config?.format ?? defaultFormat,
+    );
     await this.reloadConfig(session);
+    return notSaved;
   }
 
   private async reloadConfig(session: Session): Promise<void> {
     try {
-      session.config = await loadConfig(session.configPath);
+      session.config = await loadAnyConfig(session.configPath, session.project.efVersion);
     } catch (error) {
       if (error instanceof ConfigError) throw new RequestError(error.message, 500);
       throw error;
@@ -288,7 +274,11 @@ export class UiController {
     const connection = this.requireConnection(session);
     const doc = await listObjects(
       await this.engine(session),
-      { connection, provider: session.provider, configPath: session.config ? session.configPath : undefined },
+      {
+        connection,
+        provider: session.provider, // The engine reads only efcpt-config.json (for merge-dacpacs)
+        configPath: session.config?.kind === 'efcpt' ? session.configPath : undefined,
+      },
       { timeoutMs: this.options.listTimeoutMs ?? 5 * 60_000 },
     );
     if (!doc.success) throw new RequestError('Could not read the database', 502, doc.errors);

@@ -7,7 +7,13 @@ import { validateConfig } from './config/io.js';
 import { loadAnyConfig, type StoredConfig } from './config/store.js';
 import { adoptImportedSettings, isVsConfigPath, vsSettingsFileName } from './config/vs-config.js';
 import { efcptPathFor, findVsConfigFiles } from './config/vs-import.js';
-import { ConnectionError, getUiSection, resolveConnection, type ResolvedConnection } from './connection.js';
+import {
+  ConnectionError,
+  SeveralConnectionsError,
+  getUiSection,
+  resolveConnection,
+  type ResolvedConnection,
+} from './connection.js';
 import { findProjectFile, readProject, type ProjectInfo } from './project.js';
 
 /** Everything resolved from the arguments before the engine runs. */
@@ -110,7 +116,21 @@ export async function resolveSession(
       projectDir: project.projectDir,
       userSecretsId: project.userSecretsId,
     });
-  } catch (error) {
+  } catch (caught) {
+    let error = caught;
+    // An efpt config can't hold the choice: it goes in efcpt-cli.json next to it
+    if (error instanceof SeveralConnectionsError && isVsConfigPath(configPath)) {
+      const file = path.relative(cwd, path.join(path.dirname(configPath), vsSettingsFileName));
+      const entry = JSON.stringify(
+        { configs: { [path.basename(configPath)]: { connection: { 'user-secrets': error.keys[0] } } } },
+        null,
+        2,
+      );
+      error = new SeveralConnectionsError(
+        error.keys,
+        `${file} (or open the UI with efcpt --config ${path.relative(cwd, configPath)} and pick one there):\n${entry}`,
+      );
+    }
     if (!(options.tolerateConnectionErrors && error instanceof ConnectionError)) throw error;
     warnings.push(error.message);
   }

@@ -3,10 +3,10 @@
 // matches the efcpt-cli version. Engines of other releases are removed once they're replaced.
 import { createWriteStream } from 'node:fs';
 import { access, mkdir, mkdtemp, readdir, rename, rm } from 'node:fs/promises';
+import { get as httpGet, type IncomingMessage } from 'node:http';
+import { get as httpsGet } from 'node:https';
 import path from 'node:path';
-import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import type { ReadableStream as WebReadableStream } from 'node:stream/web';
 import { extract } from 'tar';
 import { assetUrl, describeFetchError, engineAsset } from '../release.js';
 import { EngineNotFoundError } from './errors.js';
@@ -20,6 +20,37 @@ async function exists(file: string): Promise<boolean> {
     () => true,
     () => false,
   );
+}
+
+/**
+ * GETs a URL, following redirects (GitHub sends release downloads to its file storage). Uses node:http(s)
+ * rather than fetch: streaming a large fetch body to disk can crash Node 22's built-in HTTP client
+ * (undici's "assert(!this.paused)") when the server closes the connection while the stream waits on the disk.
+ */
+function download(url: string, redirectsLeft = 5): Promise<IncomingMessage> {
+  return new Promise((resolve, reject) => {
+    const get = url.startsWith('https:') ? httpsGet : httpGet;
+    const request = get(url, { headers: { 'user-agent': 'efcpt-cli' } }, (response) => {
+      const status = response.statusCode ?? 0;
+      const location = response.headers.location;
+      if (status >= 300 && status < 400 && location) {
+        response.resume();
+        if (redirectsLeft === 0) {
+          reject(new Error('too many redirects'));
+          return;
+        }
+        download(new URL(location, url).toString(), redirectsLeft - 1).then(resolve, reject);
+        return;
+      }
+      if (status !== 200) {
+        response.resume();
+        reject(new Error(`HTTP ${status}`));
+        return;
+      }
+      resolve(response);
+    });
+    request.on('error', reject);
+  });
 }
 
 export interface DownloadOptions {
@@ -44,13 +75,12 @@ export async function downloadEngine(options: DownloadOptions): Promise<string> 
         `and run efcpt with --engine <folder>/efcpt.${efVersion}.dll.`,
     );
   options.log(`Downloading the EF Core ${efVersion} engine (${tag}, only when the engine changes)...`);
-  let response: Response;
+  let response: IncomingMessage;
   try {
-    response = await fetch(url);
+    response = await download(url);
   } catch (error) {
     throw fail(describeFetchError(error));
   }
-  if (!response.ok || !response.body) throw fail(`HTTP ${response.status}`);
 
   const engines = path.join(cacheRoot, 'engines');
   await mkdir(engines, { recursive: true });
@@ -58,10 +88,7 @@ export async function downloadEngine(options: DownloadOptions): Promise<string> 
   try {
     const archive = path.join(temp, 'engine.tar.gz');
     try {
-      await pipeline(
-        Readable.fromWeb(response.body as unknown as WebReadableStream<Uint8Array>),
-        createWriteStream(archive),
-      );
+      await pipeline(response, createWriteStream(archive));
     } catch (error) {
       throw fail(describeFetchError(error));
     }

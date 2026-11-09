@@ -32,8 +32,13 @@ async function releases(latest: string, files: Record<string, Buffer>) {
       response.writeHead(302, { location: `https://example.test/owner/repo/releases/tag/${latest}` }).end();
       return;
     }
-    const file = files[url.replace('/releases/download/', '')];
-    if (file) response.writeHead(200).end(file);
+    // Like GitHub, downloads redirect to file storage
+    if (url.startsWith('/releases/download/') && files[url.replace('/releases/download/', '')]) {
+      response.writeHead(302, { location: url.replace('/releases/download/', '/storage/') }).end();
+      return;
+    }
+    const file = files[url.replace('/storage/', '')];
+    if (url.startsWith('/storage/') && file) response.writeHead(200).end(file);
     else response.writeHead(404).end();
   });
   servers.push(server);
@@ -90,7 +95,7 @@ describe('installing from releases', () => {
 
     // Cached: no second download
     await locateEngine(options);
-    expect(requests.filter((r) => r.endsWith('.tar.gz'))).toHaveLength(1);
+    expect(requests.filter((r) => r.startsWith('/storage/'))).toHaveLength(1);
   });
 
   it('says what to do when the engine cannot be downloaded', async () => {

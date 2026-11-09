@@ -3,6 +3,7 @@ import { UsageError } from '../args.js';
 import type { ResolvedConnection } from '../connection.js';
 import { locateEngine, type Engine } from '../engine/locate.js';
 import { checkDotnetRuntime } from '../engine/runtime.js';
+import { packageInfo } from '../release.js';
 import type { Session } from '../session.js';
 
 /** Where output goes: results on stdout, progress and problems on stderr. */
@@ -34,6 +35,11 @@ export function requireConnection(session: Session): ResolvedConnection {
   );
 }
 
+function releaseOf(context: CommandContext) {
+  const tag = packageInfo().efcptEngines;
+  return tag ? { tag, log: (line: string) => context.io.err(line) } : undefined;
+}
+
 /** Checks the runtime and finds the engine, then prints what will be used. */
 export async function prepareEngine(context: CommandContext): Promise<Engine> {
   const { session, io } = context;
@@ -41,6 +47,7 @@ export async function prepareEngine(context: CommandContext): Promise<Engine> {
     efVersion: session.project.efVersion,
     enginePath: context.enginePath,
     env: context.env,
+    release: releaseOf(context),
   });
   if (engine.command === 'dotnet') {
     await checkDotnetRuntime(session.project.efVersion);

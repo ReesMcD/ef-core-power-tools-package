@@ -3,6 +3,8 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { EfVersion } from '../project.js';
+import { downloadEngine, releaseEnginePath } from './download.js';
+import { EngineNotFoundError } from './errors.js';
 import { runProcess } from './process.js';
 
 export interface Engine {
@@ -17,12 +19,7 @@ export interface Engine {
 export const engineEnvVar = 'EFCPT_CLI_ENGINE';
 export const engineToolCommand = 'efcpt-cli-engine';
 
-export class EngineNotFoundError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'EngineNotFoundError';
-  }
-}
+export { EngineNotFoundError };
 
 /**
  * An engine given as a path: a .dll runs through `dotnet`, a .js/.mjs script (for example a test double
@@ -47,9 +44,9 @@ export function defaultCacheRoot(env: NodeJS.ProcessEnv): string {
   return path.join(env['XDG_CACHE_HOME'] ?? path.join(homedir(), '.cache'), 'efcpt-cli');
 }
 
-/** Where a downloaded engine for this EF Core version lives (downloads are added with the release pipeline, task R5). */
-export function cachedEnginePath(cacheRoot: string, efVersion: EfVersion): string {
-  return path.join(cacheRoot, 'engines', `ef${efVersion}`, `efcpt.${efVersion}.dll`);
+/** Where the engine downloaded from an engines release for an EF Core version lives. */
+export function cachedEnginePath(cacheRoot: string, tag: string, efVersion: EfVersion): string {
+  return releaseEnginePath(cacheRoot, tag, efVersion);
 }
 
 /** Reads the EF Core major version from `<engine> --version`, which prints for example "efcpt.10 10.0.0+abc". */
@@ -103,12 +100,17 @@ export interface LocateOptions {
   repoRoot?: string | false;
   /** Check the dotnet tool on PATH; disabled in tests. */
   searchPath?: boolean;
+  /**
+   * The engines release of this copy of efcpt-cli (package.json efcptEngines): engines are downloaded from it
+   * into the cache when they're needed. Undefined when running from a checkout.
+   */
+  release?: { tag: string; log: (line: string) => void };
 }
 
 /**
  * Finds the engine for the project's EF Core version, in order:
- * --engine, EFCPT_CLI_ENGINE, an engine built in this repository checkout, the download cache, then the
- * efcpt-cli-engine dotnet tool on PATH.
+ * --engine, EFCPT_CLI_ENGINE, an engine built in this repository checkout, the download cache, the
+ * efcpt-cli-engine dotnet tool on PATH, then a download from this copy's release.
  */
 export async function locateEngine(options: LocateOptions): Promise<Engine> {
   if (options.enginePath) return engineFromPath(options.enginePath, `--engine ${options.enginePath}`);
@@ -128,8 +130,11 @@ export async function locateEngine(options: LocateOptions): Promise<Engine> {
   const built = repoRoot ? await findCheckoutEngine(repoRoot, options.efVersion) : undefined;
   if (built) return engineFromPath(built, `built in this checkout ${built}`);
 
-  const cached = cachedEnginePath(options.cacheRoot ?? defaultCacheRoot(options.env), options.efVersion);
-  if (await exists(cached)) return engineFromPath(cached, `cache ${cached}`);
+  const cacheRoot = options.cacheRoot ?? defaultCacheRoot(options.env);
+  if (options.release) {
+    const cached = cachedEnginePath(cacheRoot, options.release.tag, options.efVersion);
+    if (await exists(cached)) return engineFromPath(cached, `downloaded ${cached}`);
+  }
 
   const tool: Engine = {
     command: engineToolCommand,
@@ -145,6 +150,17 @@ export async function locateEngine(options: LocateOptions): Promise<Engine> {
     }
   }
 
+  if (options.release) {
+    const downloaded = await downloadEngine({
+      efVersion: options.efVersion,
+      tag: options.release.tag,
+      cacheRoot,
+      env: options.env,
+      log: options.release.log,
+    });
+    return engineFromPath(downloaded, `downloaded ${downloaded}`);
+  }
+
   const project = `src/Core/efcpt.${options.efVersion}/efcpt.${options.efVersion}.csproj`;
   // Running from a checkout: the build is all that's missing
   if (repoRoot && (await exists(path.join(repoRoot, project)))) {
@@ -156,7 +172,8 @@ export async function locateEngine(options: LocateOptions): Promise<Engine> {
   }
   throw new EngineNotFoundError(
     `No engine found for EF Core ${options.efVersion}.${toolMismatch}\n` +
-      `Engine downloads are not available yet. Build the engine from this repository and point efcpt-cli at it:\n` +
+      `Install efcpt-cli from a release (see the README), which downloads engines as needed, or build the ` +
+      `engine from this repository and point efcpt-cli at it:\n` +
       `  dotnet build ${project} -c Release\n` +
       `  efcpt --engine <path to efcpt.${options.efVersion}.dll> ...   (or set ${engineEnvVar})`,
   );

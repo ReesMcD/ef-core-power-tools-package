@@ -11,9 +11,10 @@
 > - **Node:** plain Node, nvm and asdf
 > - **Sign-in:** SQL logins, Windows authentication and Microsoft Entra ID
 >
-> In short: install .NET 10, Node 22+ and git, then clone this repository, build the engine and efcpt-cli, and run it in your project:
+> In short: install .NET 10 and Node 22+, then install efcpt-cli straight from this repository's releases (no clone, no build, no npm account) and run it in your project:
 >
 > ```bash
+> npm install --global https://github.com/ReesMcD/ef-core-power-tools-package/releases/latest/download/efcpt-cli.tgz
 > efcpt                                         # pick tables and options in your browser
 > efcpt --config efpt.config.json --generate    # later: refresh without the UI
 > efcpt --update                                # after new changes are pushed here
@@ -21,8 +22,8 @@
 >
 > - The connection string is read from the project's user secrets, like your app does. Other options are in [Connection strings](packages/efcpt-cli/README.md#connection-strings).
 > - Run it on a branch: generating overwrites the output folder.
-> - **After new changes are pushed here,** run `efcpt --update`: it pulls and rebuilds what changed. See [Updating efcpt-cli](packages/efcpt-cli/README.md#updating-efcpt-cli).
-> - Installed it when it was called efcpt-ui? Run `efcpt-ui --update` once; see [Coming from efcpt-ui](packages/efcpt-cli/README.md#coming-from-efcpt-ui).
+> - **After new changes are merged here,** run `efcpt --update`: it installs the latest release. See [Updating efcpt-cli](packages/efcpt-cli/README.md#updating-efcpt-cli).
+> - Installed it from a clone before? See [Coming from a clone install](packages/efcpt-cli/README.md#coming-from-a-clone-install). Installed it when it was called efcpt-ui? Run `efcpt-ui --update` once; see [Coming from efcpt-ui](packages/efcpt-cli/README.md#coming-from-efcpt-ui).
 >
 > Everything below is the original EF Core Power Tools README.
 

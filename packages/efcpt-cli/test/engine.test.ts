@@ -137,10 +137,12 @@ describe('locateEngine', () => {
       (await locateEngine({ ...common, env: { EFCPT_UI_ENGINE: '/old/efcpt.10.dll' } })).description,
     ).toMatch(/^EFCPT_UI_ENGINE/);
 
-    const cached = cachedEnginePath(cacheRoot, 10);
+    // An engine downloaded for this release of efcpt-cli
+    const cached = cachedEnginePath(cacheRoot, 'engines-abc123', 10);
     await mkdir(path.dirname(cached), { recursive: true });
     await writeFile(cached, '');
-    expect((await locateEngine({ ...common, env: {} })).prefixArgs).toEqual([cached]);
+    const release = { tag: 'engines-abc123', log: () => {} };
+    expect((await locateEngine({ ...common, env: {}, release })).prefixArgs).toEqual([cached]);
   });
 
   it('explains how to get an engine when none is found', async () => {

@@ -35,7 +35,7 @@ Usage:
   efcpt --config <file> --generate [options]   generate code without the UI (for scripts and CI)
   efcpt --config <file> --list [options]       list database objects and which ones the config selects
   efcpt --import-vs <efpt.config.json>         convert an efpt.config.json to efcpt-config.json, to stop using it
-  efcpt --update                               update efcpt-cli to the latest version (git pull and rebuild)
+  efcpt --update                               install the latest release (in a clone: git pull and rebuild)
 
 Options:
   -c, --config <file>          efpt.*.config.json or efcpt-config.json to use. Default: the only config found,

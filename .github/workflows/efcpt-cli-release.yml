@@ -1,0 +1,139 @@
+name: efcpt-cli release
+
+# Every merge to master that changes efcpt-cli or the engines publishes a GitHub Release with the package,
+# efcpt-cli.tgz. People install and update it with npm straight from the release, without a registry.
+#
+# The engines (one per EF Core version, about 75 MB each) are in a release of their own, engines-<id>, where
+# the id comes from the engine's source code. They're only built and published when that code changes, and
+# efcpt-cli downloads the one a project needs on first use, so updates that don't touch the engines are small.
+#
+# Pull requests build, install and run the release without publishing anything.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'master'
+    paths:
+      - '.github/workflows/efcpt-cli-release.yml'
+      - 'packages/efcpt-cli/**'
+      - 'src/**'
+  pull_request:
+    branches:
+      - '*'
+    paths:
+      - '.github/workflows/efcpt-cli-release.yml'
+      - 'packages/efcpt-cli/**'
+      - 'src/**'
+
+# Releases are made one at a time, in order; pull request runs are replaced by newer pushes
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    env:
+      VERSION: 0.2.${{ github.run_number }}
+      TAG: v0.2.${{ github.run_number }}
+      OUT: ${{ github.workspace }}/release
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+    - uses: actions/checkout@v7
+
+    # Everything the engine build reads. Bump ENGINE_FORMAT when the way engines are built or packed changes.
+    - name: Engine id
+      run: |
+        ENGINE_FORMAT=1
+        ID=$( { echo "$ENGINE_FORMAT"; for p in src/Core src/GUI/RevEng.Shared src/GUI/lib src/Nupkg src/Directory.Build.props src/NuGet.Config; do git rev-parse "HEAD:$p"; done; } | sha256sum | cut -c1-12)
+        echo "ENGINES=engines-$ID" >> "$GITHUB_ENV"
+        if gh release view "engines-$ID" > /dev/null 2>&1; then echo "ENGINES_EXIST=1" >> "$GITHUB_ENV"; fi
+
+    - uses: actions/setup-dotnet@v6
+      if: env.ENGINES_EXIST != '1'
+      with:
+        dotnet-version: |
+          8.0.x
+          10.0.x
+
+    - uses: actions/setup-node@v5
+      with:
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: packages/efcpt-cli/package-lock.json
+
+    - name: Engines already published for this code
+      if: env.ENGINES_EXIST == '1'
+      run: gh release download "$ENGINES" --dir "$OUT/engines"
+
+    # Framework-dependent, so one build runs on Windows, Linux and macOS
+    - name: Build the engines
+      if: env.ENGINES_EXIST != '1'
+      run: |
+        mkdir -p "$OUT/engines"
+        for v in 8 9 10; do
+          dotnet publish "src/Core/efcpt.$v/efcpt.$v.csproj" -c Release -o "$RUNNER_TEMP/engines/ef$v" -nologo
+          tar -czf "$OUT/engines/efcpt-engine-ef$v.tar.gz" -C "$RUNNER_TEMP/engines/ef$v" .
+        done
+
+    # The version and both release tags go into package.json: they tell efcpt-cli where it and its engines are
+    - name: Build the package
+      working-directory: packages/efcpt-cli
+      run: |
+        npm ci
+        npm version "$VERSION" --no-git-tag-version
+        npm pkg set efcptRelease="$TAG" efcptEngines="$ENGINES"
+        npm run build
+        npm pack --pack-destination "$RUNNER_TEMP"
+        mv "$RUNNER_TEMP/efcpt-cli-$VERSION.tgz" "$OUT/efcpt-cli.tgz"
+
+    # As a user would: install from the release files, then list a SQLite database, which downloads the engine
+    - name: Install and run, as from the release
+      run: |
+        mkdir -p "$RUNNER_TEMP/serve/download/$TAG" "$RUNNER_TEMP/serve/download/$ENGINES"
+        cp "$OUT/efcpt-cli.tgz" "$RUNNER_TEMP/serve/download/$TAG/"
+        cp "$OUT"/engines/* "$RUNNER_TEMP/serve/download/$ENGINES/"
+        (cd "$RUNNER_TEMP/serve" && python3 -m http.server 8765 > /dev/null 2>&1 &)
+        sleep 2
+        export EFCPT_CLI_RELEASES_URL=http://127.0.0.1:8765
+        export EFCPT_CLI_CACHE="$RUNNER_TEMP/cache"
+        export npm_config_prefix="$RUNNER_TEMP/global"
+        npm install --global --no-audit --no-fund "$EFCPT_CLI_RELEASES_URL/download/$TAG/efcpt-cli.tgz"
+        export PATH="$RUNNER_TEMP/global/bin:$PATH"
+        test "$(efcpt --version)" = "$VERSION"
+        cp -r packages/efcpt-cli/test/fixtures/sample-project "$RUNNER_TEMP/sample"
+        cd "$RUNNER_TEMP/sample"
+        SAMPLE_SHOP_DB="Data Source=$PWD/shop.db" efcpt --list 2>&1 | tee list.txt
+        grep -q 'Downloading the EF Core 10 engine' list.txt
+        grep -q 'Customers' list.txt
+
+    - uses: actions/upload-artifact@v7
+      with:
+        name: efcpt-cli-release
+        path: release/efcpt-cli.tgz
+
+    - name: Publish the engines
+      if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && env.ENGINES_EXIST != '1'
+      run: |
+        gh release create "$ENGINES" "$OUT"/engines/* \
+          --target "$GITHUB_SHA" \
+          --title "efcpt-cli engines $ENGINES" \
+          --prerelease --latest=false \
+          --notes "Engines for EF Core 8, 9 and 10, downloaded by efcpt-cli when needed. Built from $GITHUB_SHA."
+
+    - name: Publish the release
+      if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+      run: |
+        gh release create "$TAG" "$OUT/efcpt-cli.tgz" \
+          --target "$GITHUB_SHA" \
+          --title "efcpt-cli $VERSION" \
+          --latest \
+          --notes "Install or update: \`npm install --global https://github.com/${{ github.repository }}/releases/latest/download/efcpt-cli.tgz\`, or run \`efcpt --update\`. Engines: $ENGINES. Built from $GITHUB_SHA."

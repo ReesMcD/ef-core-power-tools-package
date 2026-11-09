@@ -6,31 +6,30 @@ efcpt-cli used to be called efcpt-ui. If you installed it under that name, `efcp
 
 This is a fork of [EF Core Power Tools](https://github.com/ErikEJ/EFCorePowerTools) by ErikEJ (MIT). It is not the official tool.
 
-> **Status:** in use on the team. The web UI, `--generate` and `--list` work, with the Visual Studio extension's configs as they are, tested against SQL Server (including Windows authentication), PostgreSQL and SQLite. It isn't published to npm: you install it from a clone of this repository (below) and update it with `efcpt --update`.
+> **Status:** in use on the team. The web UI, `--generate` and `--list` work, with the Visual Studio extension's configs as they are, tested against SQL Server (including Windows authentication), PostgreSQL and SQLite. It isn't on the npm registry: you install it with npm straight from this repository's GitHub Releases (below), no account needed, and update it with `efcpt --update`.
 
 ## Getting started
 
 Six steps, each with commands to copy and paste. Pick the block for your shell.
 
-**Already installed?** To pick up new changes pushed to this repository, see [Updating efcpt-cli](#updating-efcpt-cli).
+**Already installed?** To pick up new changes, see [Updating efcpt-cli](#updating-efcpt-cli). **Installed from a clone before?** See [Coming from a clone install](#coming-from-a-clone-install).
 
 | Where you run it      | Shells          | SQL Server sign-in                                                    |
 | --------------------- | --------------- | --------------------------------------------------------------------- |
 | Windows               | cmd, PowerShell | SQL login, Windows authentication or Microsoft Entra ID               |
 | WSL (or Linux, macOS) | bash, zsh, fish | SQL login or Microsoft Entra ID. Windows authentication needs Windows |
 
-Install it separately on each side you use, because the build is per operating system. Try it on a branch of your project first: generating overwrites the output folder and removes files it generated before that are no longer needed.
+Install it separately on each side you use (Windows and WSL each have their own Node). Try it on a branch of your project first: generating overwrites the output folder and removes files it generated before that are no longer needed.
 
 ### 1. Prerequisites
 
-You need git, the .NET 10 SDK, the .NET 8 runtime (only for EF Core 8 or 9 projects) and Node 22 or newer.
+You need the .NET 10 SDK, the .NET 8 runtime (only for EF Core 8 or 9 projects) and Node 22 or newer.
 
 #### Windows
 
 In cmd or PowerShell:
 
 ```cmd
-winget install Git.Git
 winget install Microsoft.DotNet.SDK.10
 winget install Microsoft.DotNet.Runtime.8
 ```
@@ -66,7 +65,7 @@ dotnet --list-runtimes
 In bash, zsh or fish:
 
 ```bash
-sudo apt update && sudo apt install -y git dotnet-sdk-10.0 dotnet-runtime-8.0
+sudo apt update && sudo apt install -y dotnet-sdk-10.0 dotnet-runtime-8.0
 ```
 
 If apt can't find `dotnet-sdk-10.0`, follow [Microsoft's .NET install guide](https://learn.microsoft.com/dotnet/core/install/linux) for your distribution. Ubuntu's own Node is too old, so install Node with asdf or nvm. Skip this if `node --version` already shows v22 or newer.
@@ -116,80 +115,42 @@ dotnet --list-runtimes
 
 ### 2. Install efcpt-cli
 
-This clones the repository into your home folder and builds the engines for EF Core 8, 9 and 10. Building all three is the simplest; you only need the ones your projects use.
-
-**Windows, cmd:**
-
-```cmd
-cd /d %USERPROFILE%
-git clone https://github.com/ReesMcD/ef-core-power-tools-package.git
-cd ef-core-power-tools-package
-dotnet build src\Core\efcpt.8\efcpt.8.csproj -c Release
-dotnet build src\Core\efcpt.9\efcpt.9.csproj -c Release
-dotnet build src\Core\efcpt.10\efcpt.10.csproj -c Release
-cd packages\efcpt-cli
-npm ci
-npm run build
-npm link
-```
-
-**Windows, PowerShell:**
-
-```powershell
-cd ~
-git clone https://github.com/ReesMcD/ef-core-power-tools-package.git
-cd ef-core-power-tools-package
-dotnet build src\Core\efcpt.8\efcpt.8.csproj -c Release
-dotnet build src\Core\efcpt.9\efcpt.9.csproj -c Release
-dotnet build src\Core\efcpt.10\efcpt.10.csproj -c Release
-cd packages\efcpt-cli
-npm ci
-npm run build
-npm link
-```
-
-**WSL (bash, zsh or fish):**
+The same command in every shell (cmd, PowerShell, bash, zsh, fish):
 
 ```bash
-cd ~
-git clone https://github.com/ReesMcD/ef-core-power-tools-package.git
-cd ef-core-power-tools-package
-dotnet build src/Core/efcpt.8/efcpt.8.csproj -c Release
-dotnet build src/Core/efcpt.9/efcpt.9.csproj -c Release
-dotnet build src/Core/efcpt.10/efcpt.10.csproj -c Release
-cd packages/efcpt-cli
-npm ci
-npm run build
+npm install --global https://github.com/ReesMcD/ef-core-power-tools-package/releases/latest/download/efcpt-cli.tgz
 ```
+
+That's all: npm downloads efcpt-cli from the latest release of this repository. No clone, no build, no npm account. The engine that generates the code (about 75 MB) downloads the first time you use it with a project, once per EF Core version, and again only when the engine itself changes.
 
 ### 3. Add the `efcpt` command
 
-**Windows:** `npm link` in step 2 already added it. Open a new window and check with `efcpt --version`.
+**Windows:** step 2 already added it. Open a new window and check with `efcpt --version`.
 
 - **PowerShell says _running scripts is disabled on this system_:** run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, or type `efcpt.cmd` instead of `efcpt`.
 - **With nvm-windows**, global commands belong to one Node version. If you `nvm use` another version, run `nvm use 22` again before using efcpt.
 
-**WSL:** add a shell function that runs efcpt with the Node you just used. With asdf or nvm, a project can pin another Node version (`.tool-versions`, `.nvmrc`). An `npm link`ed command then fails in that project with _No executable efcpt found for current version_; the function works in every folder. Run these from `~/ef-core-power-tools-package/packages/efcpt-cli`, where step 2 ended:
+**WSL:** add a shell function that runs efcpt with the Node you just installed it with. With asdf or nvm, a project can pin another Node version (`.tool-versions`, `.nvmrc`), and a plain global command then fails in that project with _No executable efcpt found for current version_; the function works in every folder. Run the line for your shell from any folder, with the same Node as step 2:
 
 ```bash
 # zsh
-echo "efcpt() { '$(asdf which node 2>/dev/null || command -v node)' '$PWD/dist/cli.js' \"\$@\"; }" >> ~/.zshrc
+echo "efcpt() { '$(asdf which node 2>/dev/null || command -v node)' '$(npm root -g)/efcpt-cli/dist/cli.js' \"\$@\"; }" >> ~/.zshrc
 exec zsh
 ```
 
 ```bash
 # bash
-echo "efcpt() { '$(asdf which node 2>/dev/null || command -v node)' '$PWD/dist/cli.js' \"\$@\"; }" >> ~/.bashrc
+echo "efcpt() { '$(asdf which node 2>/dev/null || command -v node)' '$(npm root -g)/efcpt-cli/dist/cli.js' \"\$@\"; }" >> ~/.bashrc
 exec bash
 ```
 
 ```fish
 # fish
 mkdir -p ~/.config/fish/functions
-printf "function efcpt\n    '%s' '%s' \$argv\nend\n" (command -q asdf; and asdf which node; or command -v node) (pwd)/dist/cli.js > ~/.config/fish/functions/efcpt.fish
+printf "function efcpt\n    '%s' '%s' \$argv\nend\n" (command -q asdf; and asdf which node; or command -v node) (npm root -g)/efcpt-cli/dist/cli.js > ~/.config/fish/functions/efcpt.fish
 ```
 
-Check with `efcpt --version`. The function points at your clone, so [updates](#updating-efcpt-cli) need no reinstall. If you later uninstall that Node version, run these lines again.
+Check with `efcpt --version`. The function points at the installed copy, so [updates](#updating-efcpt-cli) need no change to it. If you later uninstall that Node version, install efcpt-cli again with another one and run these lines again.
 
 - **Set up under the old name `efcpt-ui`?** See [Coming from efcpt-ui](#coming-from-efcpt-ui).
 - **Name clash:** upstream EF Core Power Tools has its own command line tool that is also called `efcpt` (`dotnet tool install ErikEJ.EFCorePowerTools.Cli`). If you installed it, whichever comes first on your `PATH` wins on Windows; in WSL the shell function always wins. If you need upstream's tool too, run this one through its full path (`type efcpt` shows it), or remove the dotnet tool with `dotnet tool uninstall -g ErikEJ.EFCorePowerTools.Cli`.
@@ -375,25 +336,25 @@ Good to know:
 
 ### Updating efcpt-cli
 
-**Do this after new changes are pushed to this repository.** Your clone doesn't update itself. From any folder, in any shell:
+**Do this after new changes are merged into this repository.** Every merge publishes a new release; your copy doesn't update itself. From any folder, in any shell:
 
 ```bash
 efcpt --update
 ```
 
-It pulls the latest changes and rebuilds only what changed:
+It installs the latest release over yours with npm, or says you're up to date. Running the install command from step 2 again does the same. You don't need to redo step 3. If the engine changed, the new one downloads the next time you generate; otherwise nothing more downloads.
 
-- the engines you have built, if their code changed
-- the npm dependencies, if they changed
-- efcpt-cli itself
+- **Check what you're on:** `efcpt --version`. The [releases page](https://github.com/ReesMcD/ef-core-power-tools-package/releases) lists every version.
+- **Where are the engines?** In a download cache: `%LOCALAPPDATA%\efcpt-cli\Cache` on Windows, `~/.cache/efcpt-cli` in WSL. Old engines are removed when new ones replace them. Deleting the folder is safe; the engine downloads again.
 
-You don't need to reinstall anything or redo step 3. If nothing is new, it says so and stops.
+### Coming from a clone install
 
-- **The same from the clone:** `npm run update` in `packages/efcpt-cli`. Use it if `efcpt` itself is broken, for example after a build that failed halfway. `npm run update -- --force` rebuilds everything even when nothing is new.
-- **Local changes in the clone:** the update stops before touching anything and tells you to `git stash` them first.
-- **Check what you're on:** `git log -1 --oneline` in the clone.
-- **Where is the clone?** In WSL, `type efcpt` shows the path, `.../packages/efcpt-cli/dist/cli.js`. On Windows, run `npm root -g`; the `efcpt-cli` entry in that folder links to your clone.
-- **First time with an older version that has no `--update`:** update once by hand. In the clone, run `git pull`. Then run `node packages/efcpt-cli/scripts/update.mjs`. From then on, `efcpt --update` works.
+Before releases, efcpt-cli was installed from a clone of this repository, with the engines built by hand. To switch, run step 2's install command, then:
+
+- **WSL:** run the line for your shell from [step 3](#3-add-the-efcpt-command) again. It replaces your function, which pointed at the clone: in fish the file is overwritten; in bash or zsh, delete the old `efcpt()` line from `~/.bashrc` or `~/.zshrc` first.
+- **Windows:** nothing else. The install replaces the `npm link` to your clone.
+
+Check with `efcpt --version`: a release prints a version like `0.2.12` (a clone prints `0.1.0`). Then you can delete the clone, unless you work on efcpt-cli itself. In a clone, `efcpt --update` still pulls and rebuilds, as before.
 
 ### Coming from efcpt-ui
 
@@ -403,12 +364,12 @@ efcpt-cli used to be called efcpt-ui, in `packages/efcpt-ui`, with the command `
 efcpt-ui --update
 ```
 
-The update builds efcpt-cli and moves your setup over:
+The update builds efcpt-cli in your clone and moves your setup over:
 
 - **Shell function:** your `efcpt-ui` function in fish, `.bashrc` or `.zshrc` becomes `efcpt` and points at `packages/efcpt-cli`.
 - **Global link:** a global `efcpt-ui` npm link is replaced with `efcpt`.
 
-Open a new shell afterwards. From then on the command is `efcpt`, and `efcpt-ui` no longer exists.
+Open a new shell afterwards. From then on the command is `efcpt`, and `efcpt-ui` no longer exists. Then switch to installing from releases: [Coming from a clone install](#coming-from-a-clone-install).
 
 - **Configs need no changes.** An `"efcpt-ui": { ... }` section is still read, and becomes `"efcpt-cli"` the next time efcpt writes it. So does `EFCPT_UI_ENGINE`.
 - **If your `efcpt-ui` has no `--update` yet:** in the clone, run `git pull`, then `node packages/efcpt-cli/scripts/update.mjs`. It does the same move.
@@ -419,16 +380,16 @@ Open a new shell afterwards. From then on the command is `efcpt`, and `efcpt-ui`
 | Message                                                                                                                                     | Fix                                                                                                                                                                                                                                      |
 | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | _No executable efcpt found for current version_ (asdf)                                                                                      | The project pins another Node version. Add the shell function from [step 3](#3-add-the-efcpt-command).                                                                                                                                   |
-| `efcpt: command not found`                                                                                                                  | WSL: add the shell function from step 3 and open a new shell. Windows: open a new window after `npm link`.                                                                                                                               |
+| `efcpt: command not found`                                                                                                                  | WSL: add the shell function from step 3 and open a new shell. Windows: open a new window after installing.                                                                                                                               |
 | fish: _command substitutions not allowed here_                                                                                              | fish doesn't accept `(...)` as a command name. Use the step 3 function, which writes the path out.                                                                                                                                       |
 | PowerShell: _running scripts is disabled on this system_                                                                                    | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, or type `efcpt.cmd`.                                                                                                                                                              |
 | _Login failed_ or _network-related error_ from WSL                                                                                          | Use a SQL login or Entra ID, not Windows authentication. Turn on mirrored networking for a server on your own machine (step 4).                                                                                                          |
 | _Microsoft Entra ID sign-in failed_                                                                                                         | Run `az login` again, on the same side (Windows or WSL) you run efcpt-cli. Your account must be a user in the database.                                                                                                                  |
 | _The certificate chain was issued by an authority that is not trusted_                                                                      | Add `TrustServerCertificate=True` to the connection string.                                                                                                                                                                              |
-| Every generated file shows as changed                                                                                                       | Update efcpt-cli (above). It keeps your files' line endings. Also check the project's EF Core version matches the engine you built.                                                                                                      |
+| Every generated file shows as changed                                                                                                       | Update efcpt-cli (above). It keeps your files' line endings.                                                                                                                                                                             |
 | After updating, a few generated files change (for example `DbContextExtensions.cs`, `HasAnnotation("Relational:DefaultConstraintName", …)`) | efcpt-cli uses a newer version of the code generator than the EF Core Power Tools release in Visual Studio. Commit the changes once; teammates who still generate from Visual Studio should update the extension, or it flips them back. |
-| Something fixed upstream still happens to you                                                                                               | Update your clone and rebuild: [Updating efcpt-cli](#updating-efcpt-cli).                                                                                                                                                                |
-| _no engine found_                                                                                                                           | Build the engine for your project's EF Core version (step 2).                                                                                                                                                                            |
+| Something fixed upstream still happens to you                                                                                               | [Update efcpt-cli](#updating-efcpt-cli).                                                                                                                                                                                                 |
+| _Could not download the EF Core N engine_                                                                                                   | Check your network (a proxy or VPN may block github.com). The message names the file: download it in a browser, extract it and pass `--engine <folder>/efcpt.N.dll`.                                                                     |
 
 ## Using it in a project
 
@@ -571,10 +532,11 @@ efcpt-cli runs a .NET engine matching the project's EF Core version. The engine 
 1. `--engine <path>` (`efcpt.<N>.dll` or an executable)
 2. the `EFCPT_CLI_ENGINE` environment variable
 3. an engine built in this repository, when efcpt-cli runs from a checkout (`src/Core/efcpt.<N>/bin/Release` or `Debug`)
-4. the download cache (not used yet: engines aren't published for download)
+4. the download cache
 5. an `efcpt-cli-engine` dotnet tool on `PATH` built for the same EF Core version
+6. a download from this repository's releases, into the cache (installed copies only)
 
-In practice that's 3: the engines you built in step 2. `efcpt --update` rebuilds them when their code changes.
+In practice that's 4 and 6: each copy of efcpt-cli knows which engine build it was released with, downloads it on first use and reuses it until an update brings a new one.
 
 The engine needs the .NET 8 runtime (EF Core 8 and 9) or the .NET 10 runtime (EF Core 10), or newer.
 
@@ -584,14 +546,21 @@ Run `efcpt --help`. Exit codes: `0` success, `1` generation failed, `2` usage or
 
 ## Development
 
+Work in a clone, with the engines built from source. `efcpt` from the clone finds them by itself:
+
 ```bash
+git clone https://github.com/ReesMcD/ef-core-power-tools-package.git
+cd ef-core-power-tools-package
+dotnet build src/Core/efcpt.10/efcpt.10.csproj -c Release   # and efcpt.8, efcpt.9 for those EF Core versions
 cd packages/efcpt-cli
 npm ci
+npm run build
+npm link            # efcpt now runs this clone; npm install --global <release> goes back to releases
 npm test            # unit tests (fake engine)
 npm run build && npm run test:ui   # browser tests of the web UI (Playwright)
 npm run lint && npm run format:check && npm run typecheck
 npm run sync-schema # after changing samples/efcpt-config.schema.json
-npm run update      # what efcpt --update runs (scripts/update.mjs, tested in test/update.test.ts)
+npm run update      # what efcpt --update runs in a clone (scripts/update.mjs, tested in test/update.test.ts)
 
 # end to end against the real engine, including dotnet build of the generated code, and parity with
 # the Visual Studio extension's code generator (dotnet build src/Core/efreveng100/efreveng100.csproj -c Release)
@@ -600,6 +569,10 @@ EFCPT_CLI_E2E_ENGINE=<path to efcpt.10.dll> EFCPT_CLI_E2E_BUILD=1 \
 ```
 
 Requires Node 22 or newer.
+
+### Releases
+
+`.github/workflows/efcpt-cli-release.yml` publishes a release for every merge to `master` that touches efcpt-cli or the engine code: `v0.2.<run number>`, with `efcpt-cli.tgz`. The engines go in a separate release, `engines-<id>`, where the id is a hash of the engine's source folders; it's only built and published when that code changes, so most releases reuse the previous engines and nobody downloads them again. The version and both tags are written into the packed `package.json` (`efcptRelease`, `efcptEngines`); a clone has neither, which is how efcpt-cli tells the two apart. Pull requests run the same build, install the result from a local copy of the release files and list a SQLite database with it, without publishing.
 
 ### Keeping up with upstream EF Core Power Tools
 
@@ -612,4 +585,4 @@ git checkout -b sync-upstream origin/master
 git merge upstream/master        # resolve conflicts, then push and open a PR
 ```
 
-Merge through a PR, not GitHub's "Sync fork" button, so CI runs. That includes the test that compares an efpt config's output with the Visual Studio extension's generator. After it merges, everyone runs `efcpt --update`.
+Merge through a PR, not GitHub's "Sync fork" button, so CI runs. That includes the test that compares an efpt config's output with the Visual Studio extension's generator. After it merges, a release is published and everyone runs `efcpt --update`.

@@ -1,36 +1,19 @@
-import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { helpText, parseCliArgs, UsageError } from './args.js';
 import { runGenerate } from './commands/generate.js';
 import { runImportVs } from './commands/import-vs.js';
 import { consoleOutput, type Output } from './commands/common.js';
 import { runList } from './commands/list.js';
+import { runUpdate } from './commands/update.js';
 import { runUi } from './commands/ui.js';
 import { ConfigError } from './config/io.js';
 import { ConnectionError } from './connection.js';
 import { EngineNotFoundError } from './engine/locate.js';
 import { EngineError } from './engine/run.js';
 import { RuntimeError } from './engine/runtime.js';
+import { packageInfo } from './release.js';
 import { ProjectError } from './project.js';
 import { redact } from './redact.js';
 import { resolveSession } from './session.js';
-
-function packageVersion(): string {
-  const text = readFileSync(new URL('../package.json', import.meta.url), 'utf8');
-  return (JSON.parse(text) as { version: string }).version;
-}
-
-/** Runs scripts/update.mjs, which pulls this checkout and rebuilds what changed. */
-function runUpdate(io: Output): number {
-  const script = fileURLToPath(new URL('../scripts/update.mjs', import.meta.url));
-  const result = spawnSync(process.execPath, [script], { stdio: 'inherit' });
-  if (result.error) {
-    io.err(`error: could not run ${script}: ${result.error.message}`);
-    return 1;
-  }
-  return result.status ?? 1;
-}
 
 const setupErrors = [
   UsageError,
@@ -58,10 +41,10 @@ export async function main(
       return 0;
     }
     if (args.version) {
-      io.out(packageVersion());
+      io.out(packageInfo().version);
       return 0;
     }
-    if (args.update) return runUpdate(io);
+    if (args.update) return await runUpdate(env, io);
 
     if (args.importVs !== undefined) return await runImportVs({ args, io, cwd });
 

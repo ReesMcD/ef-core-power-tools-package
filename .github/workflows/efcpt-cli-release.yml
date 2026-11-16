@@ -74,13 +74,15 @@ jobs:
       if: env.ENGINES_EXIST == '1'
       run: gh release download "$ENGINES" --dir "$OUT/engines"
 
+    # Code style is checked by upstream's own CI; newer .NET SDKs on new runner images add style rules that
+    # upstream's settings turn into errors, which says nothing about efcpt-cli
     # Framework-dependent, so one build runs on Windows, Linux and macOS
     - name: Build the engines
       if: env.ENGINES_EXIST != '1'
       run: |
         mkdir -p "$OUT/engines"
         for v in 8 9 10; do
-          dotnet publish "src/Core/efcpt.$v/efcpt.$v.csproj" -c Release -o "$RUNNER_TEMP/engines/ef$v" -nologo
+          dotnet publish "src/Core/efcpt.$v/efcpt.$v.csproj" -c Release -o "$RUNNER_TEMP/engines/ef$v" -nologo -p:EnforceCodeStyleInBuild=false -p:TreatWarningsAsErrors=false
           tar -czf "$OUT/engines/efcpt-engine-ef$v.tar.gz" -C "$RUNNER_TEMP/engines/ef$v" .
         done
 

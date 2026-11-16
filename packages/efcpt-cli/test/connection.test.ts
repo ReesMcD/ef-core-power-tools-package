@@ -8,7 +8,9 @@ import {
   lookupKey,
   SeveralConnectionsError,
   resolveConnection,
+  parseDotnetJson,
   stripJsonComments,
+  userSecretConnectionKeys,
   type ConnectionOptions,
 } from '../src/connection.js';
 import { redact } from '../src/redact.js';
@@ -127,6 +129,11 @@ describe('helpers', () => {
     });
   });
 
+  it('accepts trailing commas, but not commas in strings or real mistakes', () => {
+    expect(parseDotnetJson('{ "a": [1, 2,], "b": "x,}", }')).toEqual({ a: [1, 2], b: 'x,}' });
+    expect(() => parseDotnetJson('{ "a": 1,, }')).toThrow();
+  });
+
   it('redacts connection strings and passwords', () => {
     const conn = 'Server=db;User Id=sa;Password=S3cret!;';
     expect(redact(`failed to open ${conn}`, [conn])).toBe('failed to open <connection string>');
@@ -197,6 +204,31 @@ describe('helpers', () => {
         'ConnectionStrings:Audit',
       ]);
       expect((error as Error).message).toContain('"user-secrets": "ConnectionStrings:Sales"');
+    });
+
+    it('reads a secrets file as .NET does: BOM, comments and trailing commas (Visual Studio edits)', async () => {
+      const root = await mkdtemp(path.join(tmpdir(), 'efcpt-cli-secrets-'));
+      await mkdir(path.join(root, 'app-1'));
+      await writeFile(
+        path.join(root, 'app-1', 'secrets.json'),
+        '\uFEFF{\r\n  // dev only\r\n  "ConnectionStrings:Sales": "Server=a,1433;",\r\n  "ConnectionStrings:Audit": "Server=b",\r\n}\r\n',
+      );
+      expect(await userSecretConnectionKeys(options(root))).toEqual([
+        'ConnectionStrings:Sales',
+        'ConnectionStrings:Audit',
+      ]);
+    });
+
+    it('says so when the secrets file is broken, rather than finding no connection strings', async () => {
+      const root = await mkdtemp(path.join(tmpdir(), 'efcpt-cli-secrets-'));
+      await mkdir(path.join(root, 'app-1'));
+      await writeFile(path.join(root, 'app-1', 'secrets.json'), '{ "ConnectionStrings:Sales": "a" "x": 1 }');
+      const error = await resolveConnection(options(root)).catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(ConnectionError);
+      expect((error as Error).message).toMatch(/secrets\.json is not valid JSON/);
+      // No secrets at all is fine
+      const empty = await mkdtemp(path.join(tmpdir(), 'efcpt-cli-secrets-'));
+      expect(await userSecretConnectionKeys(options(empty))).toEqual([]);
     });
 
     it("reads another project's user secrets, for example the startup project", async () => {

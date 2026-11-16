@@ -149,11 +149,13 @@ jobs:
         cache: npm
         cache-dependency-path: packages/efcpt-cli/package-lock.json
 
+    # Code style is checked by upstream's own CI; newer .NET SDKs on new runner images add style rules that
+    # upstream's settings turn into errors, which says nothing about efcpt-cli
     - name: Build engine (EF Core 10) and the Visual Studio extension's code generator
       working-directory: .
       run: |
-        dotnet build src/Core/efcpt.10/efcpt.10.csproj -c Release
-        dotnet build src/Core/efreveng100/efreveng100.csproj -c Release
+        dotnet build src/Core/efcpt.10/efcpt.10.csproj -c Release -p:EnforceCodeStyleInBuild=false -p:TreatWarningsAsErrors=false
+        dotnet build src/Core/efreveng100/efreveng100.csproj -c Release -p:EnforceCodeStyleInBuild=false -p:TreatWarningsAsErrors=false
 
     - run: npm ci
 
@@ -219,7 +221,7 @@ jobs:
 
     - name: Build engine (EF Core 10)
       working-directory: .
-      run: dotnet build src/Core/efcpt.10/efcpt.10.csproj -c Release
+      run: dotnet build src/Core/efcpt.10/efcpt.10.csproj -c Release -p:EnforceCodeStyleInBuild=false -p:TreatWarningsAsErrors=false
 
     - run: npm ci
 

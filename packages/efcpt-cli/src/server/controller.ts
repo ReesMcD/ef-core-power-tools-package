@@ -134,7 +134,8 @@ export class UiController {
             config: session.config?.config ?? {},
             projectDir: session.project.projectDir,
             userSecretsId: session.project.userSecretsId,
-          })
+            // An unreadable secrets file is already in the session's warnings
+          }).catch(() => [])
         : [];
     return {
       connectionChoices,

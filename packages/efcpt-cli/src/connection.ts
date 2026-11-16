@@ -107,6 +107,36 @@ export function stripJsonComments(text: string): string {
   return output;
 }
 
+/**
+ * Removes commas before a closing } or ], which .NET's JSON configuration files allow (user secrets and
+ * appsettings edited by hand or in Visual Studio often have them). Expects comments already removed.
+ */
+export function stripTrailingCommas(text: string): string {
+  let output = '';
+  let inString = false;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i]!;
+    if (inString) {
+      output += char;
+      if (char === '\\') output += text[++i] ?? '';
+      else if (char === '"') inString = false;
+    } else if (char === '"') {
+      inString = true;
+      output += char;
+    } else if (char === ',' && /^\s*[}\]]/.test(text.slice(i + 1))) {
+      // dropped
+    } else {
+      output += char;
+    }
+  }
+  return output;
+}
+
+/** Parses JSON the way .NET reads configuration files: a BOM, comments and trailing commas are fine. */
+export function parseDotnetJson(text: string): unknown {
+  return JSON.parse(stripTrailingCommas(stripJsonComments(text.replace(/^\uFEFF/, ''))));
+}
+
 /** Looks up a .NET configuration key ("ConnectionStrings:Sales") in flat or nested JSON. */
 export function lookupKey(data: unknown, key: string): string | undefined {
   if (typeof data !== 'object' || data === null) return undefined;
@@ -128,7 +158,7 @@ async function readJsonFile(file: string, what: string): Promise<unknown> {
     throw new ConnectionError(`Cannot read ${what} file ${file}`);
   }
   try {
-    return JSON.parse(stripJsonComments(text.replace(/^\uFEFF/, '')));
+    return parseDotnetJson(text);
   } catch (error) {
     throw new ConnectionError(`${file} is not valid JSON: ${(error as Error).message}`);
   }
@@ -177,16 +207,21 @@ export async function windowsUserSecretsFiles(id: string, usersRoot = '/mnt/c/Us
   return found;
 }
 
-/** Reads a project's user secrets, from the Linux/macOS or Windows location, or from Windows' side in WSL. */
+/** Where a project's user secrets are: the Linux/macOS or Windows location, or Windows' side in WSL. */
+async function findUserSecrets(id: string, options: ConnectionOptions): Promise<string> {
+  const file = userSecretsFile(id, options.env, options.userSecretsRoot);
+  const windowsUsersRoot = options.windowsUsersRoot ?? (isWsl() ? '/mnt/c/Users' : false);
+  if (windowsUsersRoot && !(await exists(file))) {
+    return (await windowsUserSecretsFiles(id, windowsUsersRoot))[0] ?? file;
+  }
+  return file;
+}
+
 async function readUserSecrets(
   id: string,
   options: ConnectionOptions,
 ): Promise<{ file: string; data: unknown }> {
-  let file = userSecretsFile(id, options.env, options.userSecretsRoot);
-  const windowsUsersRoot = options.windowsUsersRoot ?? (isWsl() ? '/mnt/c/Users' : false);
-  if (windowsUsersRoot && !(await exists(file))) {
-    file = (await windowsUserSecretsFiles(id, windowsUsersRoot))[0] ?? file;
-  }
+  const file = await findUserSecrets(id, options);
   return { file, data: await readJsonFile(file, 'user secrets') };
 }
 
@@ -214,15 +249,14 @@ export function connectionStringKeys(data: unknown): string[] {
 
 /**
  * The connection strings in this project's user secrets, which is where the app itself reads them from in
- * development. Missing or unreadable secrets give an empty list.
+ * development. No user secrets give an empty list; a secrets file that can't be read is an error, so it isn't
+ * mistaken for having no connection strings.
  */
 export async function userSecretConnectionKeys(options: ConnectionOptions): Promise<string[]> {
   if (!options.userSecretsId) return [];
-  try {
-    return connectionStringKeys((await readUserSecrets(options.userSecretsId, options)).data);
-  } catch {
-    return [];
-  }
+  const file = await findUserSecrets(options.userSecretsId, options);
+  if (!(await exists(file))) return [];
+  return connectionStringKeys(await readJsonFile(file, 'user secrets'));
 }
 
 export class SeveralConnectionsError extends ConnectionError {
